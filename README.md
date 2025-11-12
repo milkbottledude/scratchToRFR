@@ -8,7 +8,7 @@
   
   *Since then, we have worked together for the better part of a year, creating things I could only dream of.*
   
-  *From more complicated projects such as the RFR model in Johorscrape 🚗, to more humble beginnings like my very first Kaggle contest, for which I trained a Sklearn RFR model to predict Titanic survivors 🚢.*
+  *From more complicated projects such as the RFR model in [Johorscrape](https://github.com/milkbottledude/woodlands-jb_tracker) 🚗, to more humble beginnings like my very first Kaggle contest, for which I trained a Sklearn RFR model to predict Titanic survivors 🚢.*
   
   *However, despite all this time we have spent together, I haven't put in the effort to know you very well. I feel the need to understand you on a deeper level 👩‍❤️‍👨.*
   
