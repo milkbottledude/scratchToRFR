@@ -4,7 +4,7 @@
 
 ***To my beloved Random Forest Regressor:***
 
-  *Ever since I laid eyes on you in a PyTorch YouTube tutorial, it was love at first sight.*
+  *Ever since I laid eyes on you in a Machine Learning tutorial on YouTube, it was love at first sight.*
   
   *Since then, we have worked together for the better part of a year, creating things I could only dream of.*
   

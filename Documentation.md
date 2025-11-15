@@ -9,15 +9,17 @@ Lets lay out the roadmap, don't worry its not that long:
 - 1.2: [Feature Bagging](#22-feature-bagging)
 
 ### Chapter 2: Tree Model
-- 2.1: [Stop Criteria](21-stop-criteria)
-- 2.2: [Split Criteria](22-split-criteria)
-- 2.3: [Optimizing Split](23-optimizing-split) (Coming Soon!)
-- 2.4: [Branch Recursion](24-branch-recurse)
-- 2.5: [Tree Prediction](25-tree-prediction)
+- 2.1: [Node Object](21-node-object)
+- 2.2: [Tree Object](22-tree-object)
+- 2.3: [Stop Criteria](22-stop-criteria)
+- 2.4: [Split Criteria](22-split-criteria)
+- 2.5: [Optimizing Split](23-optimizing-split) (Coming Soon!)
+- 2.6: [Branch Recursion](24-branch-recurse)
+- 2.7: [Tree Prediction](25-tree-prediction)
 
 ### Chapter 3: Forest Management
 - 3.1: [n_estimators = n trees](31-n_estimators--n-trees)
-- 3.2: [Forest Prediction]
+- 3.2: [Forest Prediction](32-forest-prediction)
 
 ### Chapter 4: [Conclusion](#conclusion)
 
@@ -51,16 +53,19 @@ Unfortunately, pandas is exclusive to python only, and Javascript's pandas alter
 
 
 ```
-const rows = csv.split("\n");
-const col_names = rows.shift().split(',')
+let rows = csv.split("\n")
+rows = rows.map(line => line.split(','))
+const colArr = rows.shift().split(',')
 const len_trng_data = rows.length
-let tree_data = []
-for (let i = 0; i < len_trng_data; i ++) {
-    let ran_int = Math.floor(Math.random(len_trng_data))
-    tree_data.push(rows[ran_int].split(','))
-
-console.log(tree_data.length, len_trng_data)
-console.log(tree_data.slice(0, 2))
+const bootstrap_rows = (trngRows=rows) => {
+    let tree_data = []
+    for (let i = 0; i < len_trng_data; i ++) {
+        let ran_int = Math.floor(Math.random(len_trng_data))
+        tree_data.push(trngRows[ran_int].split(','))
+    }
+    console.log(tree_data.length, len_trng_data) // will remove during production
+    console.log(tree_data[0]) // will remove during production
+    return tree_data
 }
 ```
 We split the csv by the '\n' newline text to get each line of data. One line represents a row. Before carrying on, we remove the first row, which are the column names.
@@ -85,9 +90,7 @@ We do this until tree_data.length === len_trng_data, lets see if they are the sa
   '0.0',                 '0.0'
 ]
 ```
-Looks good, the lengths are the same and the row has all 22 column values.
-
-This is just for a single tree. When we expand from individual trees into forests after getting the base tree infrastructure right, we will have to use for loops to give a `tree_data` array for every tree.
+Looks good, the lengths are the same and the row has all 22 column values. This code is encapsulated in the function `bootstrap_rows`, which we will be using many times to pass bootstrapped data to Tree instances.
 
 Thats the data rows sorted, now for the columns
 
@@ -99,15 +102,23 @@ So if we have 20 features, each split point (node) gets sqrt(20) ~= 4 features. 
 The features are sampled without replacement within the nodes, but with replacement for a new node. So every feature has an equal chance of being chosen for a node, regardless whether they appeared in a previous node or not.
 
 ```
-// for each node
-// done after removing the y_columns from 'col_names' ofc
-const node_ft_no = Math.floor(Math.sqrt(col_names.length))
-let col_names_node = col_names.slice()
-const node_cols = []
-for (let i = 0; i < node_ft_no; i++) {
-    ind = Math.floor(Math.random(col_names_node.length))
-    chosen = col_names_node.splice(ind, 1)
-    node_cols.push(chosen)
+// supply for each node
+// after removing the y_columns from 'colArr'
+const feature_bagginArr = colArr) => {
+    const node_ft_no = Math.floor(Math.sqrt(col_names.length))
+    let col_names_node = col_names.slice()
+    const node_cols = []
+    for (let i = 0; i < node_ft_no; i++) {
+        ind = Math.floor(Math.random(col_names_node.length))
+        chosen = col_names_node.splice(ind, 1)
+        node_cols.push(chosen)
+    }
+
+    const calcAvg = (arr) => {
+        let sum = arr.reduce((accum, cur) => accum + cur, 0)
+        let avg = sum/arr.length
+        return avg
+    } 
 }
 ```
 
@@ -119,6 +130,139 @@ Again, we will have to use a for loop to do this for every node of every tree, s
 
 ## Chapter 2 - Tree Model
 
-### 2.1: Stop Criteria
+### 2.1: Node Object
+Fresh out of learning OOP in Python, I want to apply the concept in this project. But do pardon me if I make any mistakes, its my first time applying classes and objects to a project.
 
+I think treating the heavily repeated nodes and trees like objects, with built-in properties and methods, will save us a lot of time and codespace.
+
+Lets refresh ourselves on what nodes are. They are the points in the decision tree that split the **data rows** it receives into 2 groups based on the  **threshold value** of a feature, out of the **sqrt(n) features** in the node.
+
+The threshold value of each feature is chosen based on how low the `weighted variance` is.
+
+With that in mind, lets create the `Node` class, starting with its attributes.
+
+```
+class Node {
+    constructor(input_rows, features) {
+        this.input_rows = input_rows
+        this.ftError = {}
+        this.ftThres = {}
+        for (const feat of features) {
+            this.ftError[feat] = Infinity
+            this.ftThres[feat] = undefined
+        }
+        this.bestFt = undefined
+    }
+```
+
+First, I define the 2 arguments that will go into a node object (input training rows & chosen features). Then, I create a dictionary (or hashmap I think its called outside of python) with the chosen feature names as its keys. 
+
+The dictionary is called `ftError`, as it is meant to assign the feature name to its best variance score of all it's thresholds. The variance scores are set to Infinity temporarily.
+
+`ftThres`, short for 'feature threshold', stores the best threshold value for each feature. Again, because they have not been calculated, the values in the key-value pairs are set to 'undefined'. For now.
+
+`bestFt`, short for feature index, will be assigned the feature with the lowest variance score inside ftError, paired with its corresponding threshold value from ftThres. This will be calculated later on, so it is set to undefined for now.
+
+Lets move on to the methods.
+
+```
+    calcAvg = (arr) => {
+        let sum = arr.reduce((accum, cur) => accum + cur, 0)
+        let avg = sum/arr.length
+        return avg
+    } 
+```
+
+`calcAvg` is nothing special, just a little method which calculates the mean of an array of numbers. If I was using python, I would not bother since I would be using pandas, and pandas has a built in method for calculating average.
+
+Edit: I moved calcAvg outside the class to make it a global function afterwards. I have a feeling it will be used outside of nodes as well.
+
+```
+    calcVar = (grp1, grp2) => {
+        let grps = [grp1, grp2]
+        let means = [this.calcAvg(grp1), this.calcAvg(grp2)]
+        let vars = [0, 0]
+
+        for (let i = 0; i < grps.length; i++) {
+            let grp = grps[i]
+            for (const y of grp) {
+                let ting = (y-means[i])**2
+                vars[i] += ting
+            }
+        }
+        let div = grp1.length + grp2.length 
+        return (vars[0] + vars[1])/div
+    }
+```
+
+As mentioned earlier on what goes on in a **tree node**, a split is determined by the best **weighted variance** value. The feature threshold with the lowest of that value is picked to be the splitting factor for that node.
+
+`calcVar` calculates the weighted variance for each threshold. The 2 arguments it accepts, grp1 and grp2, are arrays of y_column values. The 'grp1' array consists of y_column values below the threshold, while 'grp2' holds those above.
+
+I won't bore you too much with the code within, its just the mean squared error (MSE) formula in Javascript syntax with some extra stuff on top to apply weightage. But I will point out the use of calcAvg in the 3rd line of the method. Adding the mean formula in the list would make the code quite an eyesore.
+
+
+```
+    pickBest = () => {
+        let smol = Infinity
+        let ind = undefined
+        for (const ft in ftError) {
+            if (this.ftError[ft] < smol) {
+                smol = this.ftError[ft]
+                ind = ft
+            } 
+        }
+        this.bestFt = {ind: thisindThres[ind]}
+```
+
+`pickBest` iterates through the variance scores in 'ftError' and singles out the lowest value, as well as its feature key. Then it finds the threshold value responsible for that variance score from ftThres, then assigns both the feature name and threshold value to `bestFt` as a key value pair.
+
+```
+code for JSONsave
+```
+
+`JSONsave` ...
+
+```
+    testThres = (croppedData, binary=false) => {
+        croppedData.sort((a, b) => a[0] - b[0])
+        let lowest = Infinity
+        let thres_val = undefined
+        let x_vals = croppedData.map(row => row[0])
+        let y_vals = croppedData.map(row => row[1])
+        if (binary === false) {
+            for (let i = 1; i < croppedData.length; i++) {
+                let left = y_vals.slice(0, i)
+                let right = y_vals.slice(i)
+                pot = this.calcVar(left, right)
+                if (pot < lowest) {
+                    lowest = pot
+                    midst = x_vals[i] + x_vals[i-1]
+                    thres_val = midst/2
+                }
+            }
+        } else {
+            let falses = x_vals.filter(x => x === false)
+            let left = y_vals.slice(0, falses.length)
+            let right = y_vals.slice(falses.length)
+            lowest = this.calcVar(left, right)           
+        }
+        return [lowest, thres_val]
+    }
+```
+
+Getting slightly more complicated now, `testThres` tests all possible thresholds in the x_column. The 'croppedData' argument consists of just 2 columns from the input data: The target x_column, and the y_column.
+
+The 'binary' argument tells us if the target column contains numerical or binary values. Its set to false by default as we usually encounter more numerical columns than binary, in my experience anyway. The method handles binary columns differently to numerical columns, as you will see in a second.
+
+Sorting the columns according to the x_column values makes it easier to iterate through all the possible thresholds, which we do using a for loop after separating the x column from the y in croppedData.
+
+For each possible threshold, I split the y values into 2 groups based on which side of the threshold its x value lies, then calculate their combined weighted variance (the error metric basically). I find the lowest variance I can obtain and store it in 'lowest', along with its corresponding threshold value in 'thres_val'.
+
+That was for numerical columns. For binary columns its easier as we don't have to loop through a bunch of thresholds, just the 1: true vs false. So the y values are split into 2 groups based on whether the x values are true or false.
+
+Afterwards, I simply return the lowest error obtained and the threshold value that obtained it.
+
+// dont forget still gotta split the data to next node after finding optimal thres n feat
+// **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array?
 
