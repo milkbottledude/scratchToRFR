@@ -1,21 +1,20 @@
 const fs = require("fs");
 
 // Read CSV as text
-const unclean_csv = fs.readFileSync("../Project-JBridge/finaldata_20_to_32.csv", "utf8");
+const unclean_csv = fs.readFileSync("smol_test_data.csv", "utf8");
 const csv = unclean_csv.replace(/\r/g, "");
 
 // remove either the last or 2nd last col depending on whether u want to train for jb or wdlands. 
 // If the csv is another dataset, den issok
 let rows = csv.split("\n")
 rows = rows.map(line => line.split(','))
-// removing wdlands y_column
-rows = rows.map(row => row.slice(0, -1))
+
 const colArr = rows.shift()
 const len_trng_data = rows.length
 const bootstrap_rows = (trngRows=rows) => {
     let tree_data = []
     for (let i = 0; i < len_trng_data; i ++) {
-        let ran_int = Math.floor(Math.random(len_trng_data))
+        let ran_int = Math.floor(Math.random() * len_trng_data)
         tree_data.push(trngRows[ran_int])
     }
     // console.log(tree_data.length, len_trng_data) // will remove during production
@@ -39,11 +38,13 @@ const feature_bagging = (col_names=colArr) => {
 }
 
 const calcAvg = (arr) => {
-    let sum = arr.reduce((accum, cur) => accum + cur, 0)
+    let sum = 0
+    for (const num of arr) {
+        sum += Number(num)
+    }
     let avg = sum/arr.length
     return avg
 } 
-
 
 
 // Node Object
@@ -72,6 +73,8 @@ class Node {
             }
         }
         let div = grp1.length + grp2.length 
+        // console.log(vars)
+        // console.log(div)
         return (vars[0] + vars[1])/div
     }
     pickBest = () => {
@@ -90,20 +93,27 @@ class Node {
     }
     testThres = (croppedData, binary=false) => {
         croppedData.sort((a, b) => a[0] - b[0])
+        console.log(croppedData.slice(0, 5))
         let lowest = Infinity
         let thres_val = undefined
         let x_vals = croppedData.map(row => row[0])
-        let y_vals = croppedData.map(row => row[1])
+        let unique_x = new Set(x_vals)
         if (binary === false) {
-            for (let i = 1; i < croppedData.length; i++) {
-                let left = y_vals.slice(0, i)
-                let right = y_vals.slice(i)
-                let pot = this.calcVar(left, right)
-                if (pot < lowest) {
-                    lowest = pot
-                    midst = x_vals[i] + x_vals[i-1]
-                    thres_val = midst/2
-                }
+            for (const i of unique_x) {
+                    let left = croppedData.filter(row => Number(row[0]) <= Number(i))
+                    // console.log(left.length)
+                    // console.log(left)
+                    let right = croppedData.filter(row => Number(row[0]) > Number(i))
+                    left = left.map(row => row[1])
+                    right = right.map(row => row[1])
+                    // console.log(right.length)
+                    // console.log(right)
+                    let pot = this.calcVar(left, right)
+                    // console.log(pot)
+                    if (pot < lowest) {
+                        lowest = pot
+                        thres_val = i
+                    }
             }
         } else {
             let falses = x_vals.filter(x => x === false)
@@ -115,16 +125,18 @@ class Node {
     }
     // this first
     loopFts = () => {
+        // console.log(this.input_rows.slice(0, 4))
         for (const ft in this.ftError) {
             console.log(ft)
             let ftInd = colArr.indexOf(ft)
             let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
             let binary = false
-            console.log(cropData[0])
+            console.log(cropData.slice(0, 4))
             if (cropData[0][0] === 'True' || cropData[0][0] === 'False') {
                 binary = true
             }
             let resArr = this.testThres(cropData, binary)
+            // console.log(resArr)
             this.ftError[ft] = resArr[0]
             this.ftThres[ft] = resArr[1]
         }
@@ -157,10 +169,10 @@ class Node {
 
 // testing node
 let testNode = new Node(bootstrap_rows(), feature_bagging())
-console.log(testNode)
+// console.log(testNode)
 testNode.loopFts()
 console.log(testNode)
-// testNode.pickBest()
-// console.log(testNode)
-// console.log(testNode.passOn())
+testNode.pickBest()
+console.log(testNode)
+console.log(testNode.passOn())
 

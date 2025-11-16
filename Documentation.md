@@ -167,7 +167,7 @@ Lets move on to the methods.
 
 ```
     calcAvg = (arr) => {
-        let sum = arr.reduce((accum, cur) => accum + cur, 0)
+        let sum = arr.reduce((accum, cur) => accum + Number(cur), 0)
         let avg = sum/arr.length
         return avg
     } 
@@ -314,6 +314,56 @@ It checks if the x_column values are binary or numerical before passing them int
 The final method of the Node class (for now), `passOn`, filters the data based on the optimal threshold picked out by 'pickBest' into 2 groups. I then return the 2 groups as arrays for 2 new Node instances to take in.
 
 But before that, the method logs the best variance values of all the features passed to the node, to show the user how well the rest of the features did with their optimal thresholds.
+
+Lets test if the class and it's methods work by putting it in action. I'll be using the first 50 rows of a simple house price dataset I got from Kaggle.
+
+```
+const unclean_csv = fs.readFileSync("smol_test_data.csv", "utf8");
+...
+let testNode = new Node(bootstrap_rows(), feature_bagging())
+// console.log(testNode)
+testNode.loopFts()
+testNode.pickBest()
+console.log(testNode)
+console.log(testNode.passOn())
+```
+
+Output:
+
+```
+Node {
+  calcVar: [Function: calcVar],
+  pickBest: [Function: pickBest],
+  JSONsave: [Function: JSONsave],
+  testThres: [Function: testThres],
+  loopFts: [Function: loopFts],
+  passOn: [Function: passOn],
+  input_rows: [
+    [ '33.542039', '73.093414', '5', '5', '20.0', '11' ],
+    [ '33.698137', '72.978215', '3', '3', '5.3', '630' ],
+    [ '33.602038', '73.141966', '4', '4', '4.0', '680' ],
+    [ '33.594496', '72.92659499999999', '5', '6', '8.0', '1250' ],
+...
+    [ '33.694495', '72.82665300000001', '6', '6', '20.0', '2690' ],
+    [ '33.508481', '73.091826', '3', '3', '10.0', '1900' ],
+    [ '33.737402', '73.179159', '2', '2', '5.0', '1' ]
+  ],
+  ftError: { Area_in_Marla: 35302665.65571428, latitude: 66475686.63288889 },
+  ftThres: { Area_in_Marla: '40.0', latitude: '33.731334999999994' },
+  bestFt: [ 'Area_in_Marla', '40.0' ]
+}
+Features and their losses for this node. Errors are weighted variances
+Feature: Area_in_Marla, Error: 35302665.65571428
+Feature: latitude, Error: 66475686.63288889
+[
+  [
+    [ '33.542039', '73.093414', '5', '5', '20.0', '11' ],
+    [ '33.602038', '73.141966', '4', '4', '4.0', '680' ],
+    [ '33.542039', '73.093414', '5', '5', '20.0', '11' ],
+    [ '33.67989', '73.01264', '2', '2', '4.0', '1000' ],
+...
+```
+Looks ok so far, everything is in its rightful place and no NaN values in sight. Although those error values are rather alarming.
 
 That wraps up chapter 2.1 for now, man what a subchapter. Never in my life have I wrote so much class code in one sitting.
 Definitely one of the more satisfying coding sessions I've had. 
