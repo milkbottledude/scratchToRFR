@@ -1,23 +1,25 @@
 const fs = require("fs");
 
 // Read CSV as text
-const unclean_csv = fs.readFileSync("../Project-JBridge/final_data_tillratings7.csv", "utf8");
+const unclean_csv = fs.readFileSync("../Project-JBridge/finaldata_20_to_32.csv", "utf8");
 const csv = unclean_csv.replace(/\r/g, "");
 
 // remove either the last or 2nd last col depending on whether u want to train for jb or wdlands. 
 // If the csv is another dataset, den issok
 let rows = csv.split("\n")
 rows = rows.map(line => line.split(','))
-const colArr = rows.shift().split(',')
+// removing wdlands y_column
+rows = rows.map(row => row.slice(0, -1))
+const colArr = rows.shift()
 const len_trng_data = rows.length
 const bootstrap_rows = (trngRows=rows) => {
     let tree_data = []
     for (let i = 0; i < len_trng_data; i ++) {
         let ran_int = Math.floor(Math.random(len_trng_data))
-        tree_data.push(trngRows[ran_int].split(','))
+        tree_data.push(trngRows[ran_int])
     }
-    console.log(tree_data.length, len_trng_data) // will remove during production
-    console.log(tree_data[0]) // will remove during production
+    // console.log(tree_data.length, len_trng_data) // will remove during production
+    // console.log(tree_data[0]) // will remove during production
     return tree_data
 }
 
@@ -29,7 +31,7 @@ const feature_bagging = (col_names=colArr) => {
     let col_names_node = col_names.slice()
     const node_cols = []
     for (let i = 0; i < node_ft_no; i++) {
-        ind = Math.floor(Math.random(col_names_node.length))
+        ind = Math.floor(Math.random() * (col_names_node.length-1))
         chosen = col_names_node.splice(ind, 1)
         node_cols.push(chosen)
     }
@@ -75,7 +77,7 @@ class Node {
     pickBest = () => {
         let smol = Infinity
         let ind = undefined
-        for (const ft in ftError) {
+        for (const ft in this.ftError) {
             if (this.ftError[ft] < smol) {
                 smol = this.ftError[ft]
                 ind = ft
@@ -96,7 +98,7 @@ class Node {
             for (let i = 1; i < croppedData.length; i++) {
                 let left = y_vals.slice(0, i)
                 let right = y_vals.slice(i)
-                pot = this.calcVar(left, right)
+                let pot = this.calcVar(left, right)
                 if (pot < lowest) {
                     lowest = pot
                     midst = x_vals[i] + x_vals[i-1]
@@ -111,12 +113,15 @@ class Node {
         }
         return [lowest, thres_val]
     }
+    // this first
     loopFts = () => {
         for (const ft in this.ftError) {
-            let ftInd = col_names.indexOf(ft)
-            cropData = this.input_rows.map(rows => [rows[ftInd], rows[-1]])
+            console.log(ft)
+            let ftInd = colArr.indexOf(ft)
+            let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
             let binary = false
-            if (typeof cropData[0][0] !== 'number') {
+            console.log(cropData[0])
+            if (cropData[0][0] === 'True' || cropData[0][0] === 'False') {
                 binary = true
             }
             let resArr = this.testThres(cropData, binary)
@@ -126,7 +131,7 @@ class Node {
     }
     passOn = (leftNode, rightNode) => {
         let chosenFeat = this.bestFt[0]
-        let chosenFeatInd = col_names.indexOf(chosenFeat)
+        let chosenFeatInd = colArr.indexOf(chosenFeat)
         let leftData = undefined
         let rightData = undefined
         let threshold = this.bestFt[1]
@@ -138,13 +143,24 @@ class Node {
             rightData = this.input_rows.filter(x => x[chosenFeatInd] === false)
         }
         // output the Node's experiences b4 moving on to new nodes
-        // would be boring if we did'nt get to see how the other 2 features fared.
+        // would be boring if we did'nt get to see how the other features fared.
         console.log('Features and their losses for this node. Errors are weighted variances')
         for (const ft in this.ftError) {
             console.log(`Feature: ${ft}, Error: ${this.ftError[ft]}`)
         }
         // new nodes will continue what we started o7
-        const node1 = new Node(leftData, feature_bagging())
-        const node2 = new Node(rightData, feature_bagging())
+        // const node1 = new Node(leftData, feature_bagging())
+        // const node2 = new Node(rightData, feature_bagging())
+        return [leftData, rightData]
     }
 }
+
+// testing node
+let testNode = new Node(bootstrap_rows(), feature_bagging())
+console.log(testNode)
+testNode.loopFts()
+console.log(testNode)
+// testNode.pickBest()
+// console.log(testNode)
+// console.log(testNode.passOn())
+

@@ -109,7 +109,7 @@ const feature_bagginArr = colArr) => {
     let col_names_node = col_names.slice()
     const node_cols = []
     for (let i = 0; i < node_ft_no; i++) {
-        ind = Math.floor(Math.random(col_names_node.length))
+        ind = Math.floor(Math.random() * (col_names_node.length-1))
         chosen = col_names_node.splice(ind, 1)
         node_cols.push(chosen)
     }
@@ -206,7 +206,7 @@ I won't bore you too much with the code within, its just the mean squared error 
     pickBest = () => {
         let smol = Infinity
         let ind = undefined
-        for (const ft in ftError) {
+        for (const ft in this.ftError) {
             if (this.ftError[ft] < smol) {
                 smol = this.ftError[ft]
                 ind = ft
@@ -234,7 +234,7 @@ code for JSONsave
             for (let i = 1; i < croppedData.length; i++) {
                 let left = y_vals.slice(0, i)
                 let right = y_vals.slice(i)
-                pot = this.calcVar(left, right)
+                let pot = this.calcVar(left, right)
                 if (pot < lowest) {
                     lowest = pot
                     midst = x_vals[i] + x_vals[i-1]
@@ -263,6 +263,62 @@ That was for numerical columns. For binary columns its easier as we don't have t
 
 Afterwards, I simply return the lowest error obtained and the threshold value that obtained it.
 
-// dont forget still gotta split the data to next node after finding optimal thres n feat
-// **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array?
+```
+    loopFts = () => {
+        for (const ft in this.ftError) {
+            let ftInd = colArr.indexOf(ft)
+            let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
+            let binary = false
+            if (typeof cropData[0][0] !== 'number') {
+                binary = true
+            }
+            let resArr = this.testThres(cropData, binary)
+            this.ftError[ft] = resArr[0]
+            this.ftThres[ft] = resArr[1]
+        }
+    }
 
+```
+
+`loopFts` is the method that is supposed to come before testThres. testThres obtains the optimal threshold for individual columns, while loopFts tells it which x_column to examine. 
+
+You can see in the first line, it loops through the keys of ftError, which contains all the sqrt(n) feature names. Then, it takes only the y_columns and target x_column before creating a new data list out of those 2 columns, cropData.
+
+It checks if the x_column values are binary or numerical before passing them into testThres. Afterwards, it stores the returned values in their rightful places: The optimal variance error goes into ftError, while the threshold goes into ftThres. They are stored as values, with their keys being the feature name 'ft'.
+
+```
+    passOn = (leftNode, rightNode) => {
+        let chosenFeat = this.bestFt[0]
+        let chosenFeatInd = colArr.indexOf(chosenFeat)
+        let leftData = undefined
+        let rightData = undefined
+        let threshold = this.bestFt[1]
+        if (threshold) {
+            leftData = this.input_rows.filter(x => x[chosenFeatInd] < threshold)
+            rightData = this.input_rows.filter(x => x[chosenFeatInd] > threshold)
+        } else {
+            leftData = this.input_rows.filter(x => x[chosenFeatInd] === true)
+            rightData = this.input_rows.filter(x => x[chosenFeatInd] === false)
+        }
+        // output the Node's experiences b4 moving on to new nodes
+        // would be boring if we did'nt get to see how the other 2 features fared.
+        console.log('Features and their losses for this node. Errors are weighted variances')
+        for (const ft in this.ftError) {
+            console.log(`Feature: ${ft}, Error: ${this.ftError[ft]}`)
+        }
+        // new nodes will continue what we started o7
+        return [leftData, rightData]
+    }
+```
+
+The final method of the Node class (for now), `passOn`, filters the data based on the optimal threshold picked out by 'pickBest' into 2 groups. I then return the 2 groups as arrays for 2 new Node instances to take in.
+
+But before that, the method logs the best variance values of all the features passed to the node, to show the user how well the rest of the features did with their optimal thresholds.
+
+That wraps up chapter 2.1 for now, man what a subchapter. Never in my life have I wrote so much class code in one sitting.
+Definitely one of the more satisfying coding sessions I've had. 
+
+##### // dont forget still gotta split the data to next node after finding optimal thres n feat
+##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array?
+
+### 2.2: Tree Object
