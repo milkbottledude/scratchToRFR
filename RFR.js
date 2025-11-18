@@ -10,6 +10,16 @@ let rows = csv.split("\n")
 rows = rows.map(line => line.split(','))
 
 const colArr = rows.shift()
+
+// converting number strings to numbers n binary strings to js binary
+rows = rows.map(line =>
+    line.map(v => {
+        if (v === "True") return true
+        if (v === "False") return false
+        return Number(v);
+    })
+);
+
 const len_trng_data = rows.length
 const bootstrap_rows = (trngRows=rows) => {
     let tree_data = []
@@ -47,7 +57,7 @@ const calcAvg = (arr) => {
 } 
 
 
-// Node Object
+// Node Class
 class Node {
     constructor(input_rows, features) {
         this.input_rows = input_rows
@@ -68,7 +78,7 @@ class Node {
         for (let i = 0; i < grps.length; i++) {
             let grp = grps[i]
             for (const y of grp) {
-                let ting = (y-means[i])**2
+                let ting = (Number(y)-means[i])**2
                 vars[i] += ting
             }
         }
@@ -92,7 +102,6 @@ class Node {
         // tbc when we need to save the tree's data (threshold values, chosen feats, etc)
     }
     testThres = (croppedData, binary=false) => {
-        croppedData.sort((a, b) => a[0] - b[0])
         console.log(croppedData.slice(0, 5))
         let lowest = Infinity
         let thres_val = undefined
@@ -117,6 +126,8 @@ class Node {
             }
         } else {
             let falses = x_vals.filter(x => x === false)
+            croppedData.sort((a, b) => a[0] - b[0])
+            let y_vals = croppedData.map(row => row[1])
             let left = y_vals.slice(0, falses.length)
             let right = y_vals.slice(falses.length)
             lowest = this.calcVar(left, right)           
@@ -132,7 +143,7 @@ class Node {
             let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
             let binary = false
             console.log(cropData.slice(0, 4))
-            if (cropData[0][0] === 'True' || cropData[0][0] === 'False') {
+            if (typeof cropData[0][0] === 'boolean') {
                 binary = true
             }
             let resArr = this.testThres(cropData, binary)
@@ -141,14 +152,14 @@ class Node {
             this.ftThres[ft] = resArr[1]
         }
     }
-    passOn = (leftNode, rightNode) => {
+    passOn = () => {
         let chosenFeat = this.bestFt[0]
         let chosenFeatInd = colArr.indexOf(chosenFeat)
         let leftData = undefined
         let rightData = undefined
         let threshold = this.bestFt[1]
-        if (threshold) {
-            leftData = this.input_rows.filter(x => x[chosenFeatInd] < threshold)
+        if (threshold !== undefined) {
+            leftData = this.input_rows.filter(x => x[chosenFeatInd] <= threshold)
             rightData = this.input_rows.filter(x => x[chosenFeatInd] > threshold)
         } else {
             leftData = this.input_rows.filter(x => x[chosenFeatInd] === true)
@@ -176,3 +187,5 @@ testNode.pickBest()
 console.log(testNode)
 console.log(testNode.passOn())
 
+// Tree Class
+class Tree

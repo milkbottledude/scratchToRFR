@@ -225,24 +225,32 @@ code for JSONsave
 
 ```
     testThres = (croppedData, binary=false) => {
-        croppedData.sort((a, b) => a[0] - b[0])
+        console.log(croppedData.slice(0, 5))
         let lowest = Infinity
         let thres_val = undefined
         let x_vals = croppedData.map(row => row[0])
-        let y_vals = croppedData.map(row => row[1])
+        let unique_x = new Set(x_vals)
         if (binary === false) {
-            for (let i = 1; i < croppedData.length; i++) {
-                let left = y_vals.slice(0, i)
-                let right = y_vals.slice(i)
-                let pot = this.calcVar(left, right)
-                if (pot < lowest) {
-                    lowest = pot
-                    midst = x_vals[i] + x_vals[i-1]
-                    thres_val = midst/2
-                }
+            for (const i of unique_x) {
+                    let left = croppedData.filter(row => Number(row[0]) <= Number(i))
+                    // console.log(left.length)
+                    // console.log(left)
+                    let right = croppedData.filter(row => Number(row[0]) > Number(i))
+                    left = left.map(row => row[1])
+                    right = right.map(row => row[1])
+                    // console.log(right.length)
+                    // console.log(right)
+                    let pot = this.calcVar(left, right)
+                    // console.log(pot)
+                    if (pot < lowest) {
+                        lowest = pot
+                        thres_val = i
+                    }
             }
         } else {
             let falses = x_vals.filter(x => x === false)
+            croppedData.sort((a, b) => a[0] - b[0])
+            let y_vals = croppedData.map(row => row[1])
             let left = y_vals.slice(0, falses.length)
             let right = y_vals.slice(falses.length)
             lowest = this.calcVar(left, right)           
@@ -255,8 +263,6 @@ Getting slightly more complicated now, `testThres` tests all possible thresholds
 
 The 'binary' argument tells us if the target column contains numerical or binary values. Its set to false by default as we usually encounter more numerical columns than binary, in my experience anyway. The method handles binary columns differently to numerical columns, as you will see in a second.
 
-Sorting the columns according to the x_column values makes it easier to iterate through all the possible thresholds, which we do using a for loop after separating the x column from the y in croppedData.
-
 For each possible threshold, I split the y values into 2 groups based on which side of the threshold its x value lies, then calculate their combined weighted variance (the error metric basically). I find the lowest variance I can obtain and store it in 'lowest', along with its corresponding threshold value in 'thres_val'.
 
 That was for numerical columns. For binary columns its easier as we don't have to loop through a bunch of thresholds, just the 1: true vs false. So the y values are split into 2 groups based on whether the x values are true or false.
@@ -265,14 +271,18 @@ Afterwards, I simply return the lowest error obtained and the threshold value th
 
 ```
     loopFts = () => {
+        // console.log(this.input_rows.slice(0, 4))
         for (const ft in this.ftError) {
+            console.log(ft)
             let ftInd = colArr.indexOf(ft)
             let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
             let binary = false
-            if (typeof cropData[0][0] !== 'number') {
+            console.log(cropData.slice(0, 4))
+            if (typeof cropData[0][0] === 'boolean') {
                 binary = true
             }
             let resArr = this.testThres(cropData, binary)
+            // console.log(resArr)
             this.ftError[ft] = resArr[0]
             this.ftThres[ft] = resArr[1]
         }
@@ -287,26 +297,28 @@ You can see in the first line, it loops through the keys of ftError, which conta
 It checks if the x_column values are binary or numerical before passing them into testThres. Afterwards, it stores the returned values in their rightful places: The optimal variance error goes into ftError, while the threshold goes into ftThres. They are stored as values, with their keys being the feature name 'ft'.
 
 ```
-    passOn = (leftNode, rightNode) => {
+    passOn = () => {
         let chosenFeat = this.bestFt[0]
         let chosenFeatInd = colArr.indexOf(chosenFeat)
         let leftData = undefined
         let rightData = undefined
         let threshold = this.bestFt[1]
-        if (threshold) {
-            leftData = this.input_rows.filter(x => x[chosenFeatInd] < threshold)
+        if (threshold !== undefined) {
+            leftData = this.input_rows.filter(x => x[chosenFeatInd] <= threshold)
             rightData = this.input_rows.filter(x => x[chosenFeatInd] > threshold)
         } else {
             leftData = this.input_rows.filter(x => x[chosenFeatInd] === true)
             rightData = this.input_rows.filter(x => x[chosenFeatInd] === false)
         }
         // output the Node's experiences b4 moving on to new nodes
-        // would be boring if we did'nt get to see how the other 2 features fared.
+        // would be boring if we did'nt get to see how the other features fared.
         console.log('Features and their losses for this node. Errors are weighted variances')
         for (const ft in this.ftError) {
             console.log(`Feature: ${ft}, Error: ${this.ftError[ft]}`)
         }
         // new nodes will continue what we started o7
+        // const node1 = new Node(leftData, feature_bagging())
+        // const node2 = new Node(rightData, feature_bagging())
         return [leftData, rightData]
     }
 ```
@@ -348,22 +360,24 @@ Node {
     [ '33.508481', '73.091826', '3', '3', '10.0', '1900' ],
     [ '33.737402', '73.179159', '2', '2', '5.0', '1' ]
   ],
-  ftError: { Area_in_Marla: 35302665.65571428, latitude: 66475686.63288889 },
-  ftThres: { Area_in_Marla: '40.0', latitude: '33.731334999999994' },
-  bestFt: [ 'Area_in_Marla', '40.0' ]
+  ftError: { latitude: 35732827.86403327, bedrooms: 16200855.453877551 },
+  ftThres: { latitude: 33.724018, bedrooms: 0 },
+  bestFt: [ 'bedrooms', 0 ]
 }
 Features and their losses for this node. Errors are weighted variances
-Feature: Area_in_Marla, Error: 35302665.65571428
-Feature: latitude, Error: 66475686.63288889
+Feature: latitude, Error: 35732827.86403327
+Feature: bedrooms, Error: 16200855.453877551
 [
+  [ [ 33.731531596441, 73.065696358681, 0, 0, 90, 40000 ] ],
   [
-    [ '33.542039', '73.093414', '5', '5', '20.0', '11' ],
-    [ '33.602038', '73.141966', '4', '4', '4.0', '680' ],
-    [ '33.542039', '73.093414', '5', '5', '20.0', '11' ],
-    [ '33.67989', '73.01264', '2', '2', '4.0', '1000' ],
+    [ 33.541728000000006, 73.094103, 7, 7, 40, 8000 ],
+    [ 33.698065, 73.044612, 2, 2, 9.3, 6 ],
+    [ 33.737402, 73.179159, 3, 3, 5, 450 ],
 ...
 ```
-Looks ok so far, everything is in its rightful place and no NaN values in sight. Although those error values are rather alarming.
+Looks ok so far, everything is in its rightful place and no NaN values in sight. The error values (35732827, 16200855) may look alarming, but thats just how MSE is, they are bloody big.
+
+Its better to compare with the MSE of the entire [dataset](smol_test_data.csv), which is slightly under 65 million au. Compared to that, 36 mil and 16 mil suddenly dont seem so large.
 
 That wraps up chapter 2.1 for now, man what a subchapter. Never in my life have I wrote so much class code in one sitting.
 Definitely one of the more satisfying coding sessions I've had. 
