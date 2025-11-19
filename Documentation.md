@@ -104,7 +104,7 @@ The features are sampled without replacement within the nodes, but with replacem
 ```
 // supply for each node
 // after removing the y_columns from 'colArr'
-const feature_bagginArr = colArr) => {
+const feature_bagging = (col_names=colArr) => {
     const node_ft_no = Math.floor(Math.sqrt(col_names.length))
     let col_names_node = col_names.slice()
     const node_cols = []
@@ -113,12 +113,7 @@ const feature_bagginArr = colArr) => {
         chosen = col_names_node.splice(ind, 1)
         node_cols.push(chosen)
     }
-
-    const calcAvg = (arr) => {
-        let sum = arr.reduce((accum, cur) => accum + cur, 0)
-        let avg = sum/arr.length
-        return avg
-    } 
+    return node_cols
 }
 ```
 
@@ -175,7 +170,7 @@ Lets move on to the methods.
 
 `calcAvg` is nothing special, just a little method which calculates the mean of an array of numbers. If I was using python, I would not bother since I would be using pandas, and pandas has a built in method for calculating average.
 
-Edit: I moved calcAvg outside the class to make it a global function afterwards. I have a feeling it will be used outside of nodes as well.
+Edit: I moved calcAvg outside the class to make it a global function afterwards, below `feature_bagging`. I have a feeling it will be used outside of nodes as well.
 
 ```
     calcVar = (grp1, grp2) => {
@@ -386,3 +381,72 @@ Definitely one of the more satisfying coding sessions I've had.
 ##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array?
 
 ### 2.2: Tree Object
+
+Each tree object will not only manage many node instances, but it will also contain the hyperparameter value for 'min_samples_leaf'.
+
+I know 'max_depth' is also a hyperparameter which we tuned in [Johorscrape](https://github.com/milkbottledude/woodlands-jb_tracker/blob/master/Documentation.md#45-hyperparameter-tuning-tbc), but its purpose is similar to min_samples_leaf, which is to limit tree growth for fear of overfitting. 
+
+As for 'n_features', I forgot to consider it when creating the node class. If specified in the tree instance, it should be used over sqrt(n), so I've edited the `feature_bagging` function slightly to accomodate this.
+
+```
+const feature_bagging = (col_names=colArr, n_fts=undefined) => {
+    let node_ft_no = n_fts
+    if (!node_ft_no) {
+        node_ft_no = Math.floor(Math.sqrt(col_names.length))
+    }
+    let col_names_node = col_names.slice()
+
+    ...
+
+    return node_cols
+}
+```
+Just the small change of adding 'n_fts' as an optional argument.
+
+Regarding 'criterion', I think its a valid hyperparameter that ought to be in this model. Being able to see avg MAE per threshold might make it easier to understand the loss metric, as MSE can put things quite out of perspective with their massive loss values due to the squaring.
+
+Its a hyperparam that is involved in data splitting at node level, so it should be in the node class not tree class. If time permits, I'll go back and add it in chapter 2.1. (cmg sooon!)
+
+I won't be including the 'bootstrap' hyperparameter, as an RFR model without bootstrapped data is just many decision trees. They all get the same dataset, which defeats the point of the RFR.
+
+'n_estimators' is a hyperparameter that will be defined one level higher than the tree, the forest object, so we won't be using it here.
+
+Lets start with defining the tree class properties, before moving on to the methods.
+
+```
+class Tree {
+    constructor(all_rows, min_samp_leaf) {
+        this.btstr_rows = bootstrap_rows(all_rows)
+        this.min_samp_leaf = min_samp_leaf
+        this.depth = 0
+        this.nodes = new Map()
+    }
+```
+
+The `Tree` class takes in 2 args: 'all_rows' = the entire dataset excluding the first row of column names, and 'min_samp_leaf', the minimum number of samples a node must have for it to be considered a leaf and stop splitting.
+
+this.depth tracks how deep the tree grew, while this.nodes will track the nodes that grow within the tree. The 'this.nodes' structure will be akin to a tree branching out from the root and will be rather confusing, so heres a concept diagram I drew of it.
+
+***INSERT HAND DRAWN FIG HERE***
+
+Fig 2.1: Concept diagram of this.nodes map
+
+***explain hand drawn fig***
+
+Now lets move on to the main method of the Tree class, the recursive function that will keep making and splitting nodes until the min_samp_leaf value is reached: `recur_node`.
+
+```
+    recur_node = (node_rows, cur) => {
+        const node = new Node(node_rows, feature_bagging())
+        node.loopFts()
+        node.pickBest()
+        let [left, right] = node.passOn()
+        cur.set(node, {})
+        cur = cur.get(node)
+        this.recur_node(left, cur)
+        this.recur_node(right, cur)
+    }
+```
+
+***explain recur_node code here***
+

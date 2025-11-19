@@ -35,8 +35,11 @@ const bootstrap_rows = (trngRows=rows) => {
 const used_goods = []
 // supply for each node
 // after removing the y_columns from 'colArr'
-const feature_bagging = (col_names=colArr) => {
-    const node_ft_no = Math.floor(Math.sqrt(col_names.length))
+const feature_bagging = (col_names=colArr, n_fts=undefined) => {
+    let node_ft_no = n_fts
+    if (!node_ft_no) {
+        node_ft_no = Math.floor(Math.sqrt(col_names.length))
+    }
     let col_names_node = col_names.slice()
     const node_cols = []
     for (let i = 0; i < node_ft_no; i++) {
@@ -188,4 +191,23 @@ console.log(testNode)
 console.log(testNode.passOn())
 
 // Tree Class
-class Tree
+class Tree {
+    constructor(all_rows, min_samp_leaf) {
+        this.btstr_rows = bootstrap_rows(all_rows)
+        this.min_samp_leaf = min_samp_leaf
+        this.depth = 0
+        this.nodes = new Map()
+        // this.cur = this.nodes
+    }
+
+    recur_node = (node_rows, cur) => {
+        const node = new Node(node_rows, feature_bagging())
+        node.loopFts()
+        node.pickBest()
+        let [left, right] = node.passOn()
+        cur.set(node, {})
+        cur = cur.get(node)
+        this.recur_node(left, cur)
+        this.recur_node(right, cur)
+    }
+}
