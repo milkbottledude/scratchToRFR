@@ -207,10 +207,12 @@ I won't bore you too much with the code within, its just the mean squared error 
                 ind = ft
             } 
         }
-        this.bestFt = {ind: thisindThres[ind]}
+        this.bestFt = [ind, this.ftThres[ind]]
+    }
 ```
 
 `pickBest` iterates through the variance scores in 'ftError' and singles out the lowest value, as well as its feature key. Then it finds the threshold value responsible for that variance score from ftThres, then assigns both the feature name and threshold value to `bestFt` as a key value pair.
+
 
 ```
 code for JSONsave
@@ -415,17 +417,17 @@ Lets start with defining the tree class properties, before moving on to the meth
 
 ```
 class Tree {
-    constructor(all_rows, min_samp_leaf) {
+    constructor(all_rows, min_samp_leaf=1) {
         this.btstr_rows = bootstrap_rows(all_rows)
         this.min_samp_leaf = min_samp_leaf
-        this.depth = 0
+        this.no = 0
         this.nodes = new Map()
     }
 ```
 
 The `Tree` class takes in 2 args: 'all_rows' = the entire dataset excluding the first row of column names, and 'min_samp_leaf', the minimum number of samples a node must have for it to be considered a leaf and stop splitting.
 
-this.depth tracks how deep the tree grew, while this.nodes will track the nodes that grow within the tree. The 'this.nodes' structure will be akin to a tree branching out from the root and will be rather confusing, so heres a concept diagram I drew of it.
+'this.no' tracks the number of node instances created in this tree, while 'this.nodes' will track the nodes that grow within the tree. The 'this.nodes' structure will be akin to a tree branching out from the root and will be rather confusing, so heres a concept diagram I drew of it.
 
 ***INSERT HAND DRAWN FIG HERE***
 
@@ -436,17 +438,97 @@ Fig 2.1: Concept diagram of this.nodes map
 Now lets move on to the main method of the Tree class, the recursive function that will keep making and splitting nodes until the min_samp_leaf value is reached: `recur_node`.
 
 ```
-    recur_node = (node_rows, cur) => {
+    recur_node = (node_rows=this.btstr_rows, cur=this.nodes) => {
+        if (node_rows.length <= this.min_samp_leaf) {
+            console.log('min_samp_leaf fulfilled, ending node')
+            return 
+        }
         const node = new Node(node_rows, feature_bagging())
+        this.no++
         node.loopFts()
         node.pickBest()
         let [left, right] = node.passOn()
-        cur.set(node, {})
+        cur.set(node, new Map())
         cur = cur.get(node)
-        this.recur_node(left, cur)
-        this.recur_node(right, cur)
+        // checking if left and right are already pure
+        let uniq_left =  new Set()
+        for (const row of left) {
+            uniq_left.add(row[1])
+        }
+        let uniq_right = new Set()
+        for (const row of right) {
+            uniq_right.add(row[1])
+        }
+        if (uniq_left.size > 1) {
+            console.log('commencing left child')
+            this.recur_node(left, cur)
+        }
+        if (uniq_right.size > 1) {
+            console.log('commencing right child')
+            this.recur_node(right, cur)
+        }
     }
 ```
 
-***explain recur_node code here***
+First we create a new node instance and pass it the rows. If its the root node, we pass it this.btrstr_rows. If its a child node, we pass it either the leftData or rightData, as you can see in the last 2 lines.
 
+The second argument, 'cur', is quite out of the box and will need some explanation. Its the tree level at which the current node is at. So at the start, when calling `recur_node` for the root node, I will pass in this.nodes as 'cur'.
+
+Within recur_node, I'll set a key-value pair inside cur, with the root node being the key and an empty map being the value. Then, I'll change cur to 'this.nodes[rootNode]', which is the new empty map we just set as the value.
+
+Then, inside this new map, we will add 2 new nodes. This is from calling this.recur_node two more times, on the left and right side of the data. Notice how this time, the 'cur' passed to these 2 child nodes is not the cur passed to the root node, its the value in the key-value pair of the previous 'cur'.
+
+The recursion of node creation and node splitting will continue until the 'min_samp_leaf' criteria is met, or if the variance of all the node rows are already zero.
+
+To check if there is zero variance and the node's dataset is already pure, we can loop through the dataset and append the values to a set. If the set's length > 1, that means the dataset is not pure, and we can continue with `recur_node`.
+
+That should be it for the Tree class (for now), lets test it out and see if we can find any bugs. I will probably find many, but I won't them to you haha.
+
+```
+let testTree = new Tree(rows, 2)
+testTree.recur_node()
+console.log(testTree)
+```
+
+After many bug fixes, heres the correct output:
+
+```
+...
+Feature: Area_in_Marla, Error: 38427222.22222222
+Feature: baths, Error: 0
+Tree {
+  recur_node: [Function: recur_node],
+  btstr_rows: [
+    [ 31.499348, 74.41695899999999, 0, 3, 9, 950 ],
+    [ 33.575405, 73.143325, 5, 3, 24, 5 ],
+    [ 33.679210999999995, 72.988787, 5, 5, 20, 4000 ],
+
+...
+
+    [ 33.728873, 73.119628, 3, 3, 7.1, 3500 ],
+    [ 33.623946999999994, 73.126588, 8, 8, 32, 3450 ]
+  ],
+  min_samp_leaf: 2,
+  no: 26,
+  nodes: Map(1) {
+    Node {
+      calcVar: [Function: calcVar],
+      pickBest: [Function: pickBest],
+      JSONsave: [Function: JSONsave],
+      testThres: [Function: testThres],
+      loopFts: [Function: loopFts],
+      passOn: [Function: passOn],
+      input_rows: [Array],
+      ftError: [Object],
+      ftThres: [Object],
+      bestFt: [Array]
+    } => Map(2) { [Node] => [Map], [Node] => [Map] }
+  }
+}
+```
+
+Looks good, the most important thing here is the value of 'this.no'. The fact that its = 26 is good, because that means the recursion worked and 26 nodes were created. This is impossible to tell from printing nodes, as console.log doesn't print out the full structure.
+
+One thing I realized is that I forgot to store the leaf data. The most valuable part of the Tree class, and it completely slipped my mind. Sometimes I wonder if my iq is enough to make a career out of this.
+
+***next plan of action, to figure out a way to store leaf node data. perhaps within the nodes map? idk figure it out***

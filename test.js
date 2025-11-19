@@ -49,5 +49,13 @@ let pt2 = [
   '900000'
 ]
 
-console.log(calcVar(pt1, pt2))
+// console.log(calcVar(pt1, pt2))
 // console.log(calcAvg(pt2))
+
+let bruh =  new Map()
+bruh.set('key1', new Map) 
+let hey = bruh.get('key1')
+hey.set('key2', new Map)
+let umm = hey.get('key2')
+umm.set('key3', 'we done')
+console.log(bruh)

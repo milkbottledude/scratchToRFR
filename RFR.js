@@ -93,6 +93,7 @@ class Node {
     pickBest = () => {
         let smol = Infinity
         let ind = undefined
+        let pure_rows = true
         for (const ft in this.ftError) {
             if (this.ftError[ft] < smol) {
                 smol = this.ftError[ft]
@@ -100,6 +101,10 @@ class Node {
             } 
         }
         this.bestFt = [ind, this.ftThres[ind]]
+        if (smol > 0) {
+            pure_rows = false
+        }
+        return pure_rows
     }
     JSONsave = () => {
         // tbc when we need to save the tree's data (threshold values, chosen feats, etc)
@@ -192,22 +197,45 @@ console.log(testNode.passOn())
 
 // Tree Class
 class Tree {
-    constructor(all_rows, min_samp_leaf) {
+    constructor(all_rows, min_samp_leaf=1) {
         this.btstr_rows = bootstrap_rows(all_rows)
         this.min_samp_leaf = min_samp_leaf
-        this.depth = 0
+        this.no = 0
         this.nodes = new Map()
-        // this.cur = this.nodes
     }
 
-    recur_node = (node_rows, cur) => {
+    recur_node = (node_rows=this.btstr_rows, cur=this.nodes) => {
+        if (node_rows.length <= this.min_samp_leaf) {
+            console.log('min_samp_leaf fulfilled, ending node')
+            return 
+        }
         const node = new Node(node_rows, feature_bagging())
+        this.no++
         node.loopFts()
         node.pickBest()
         let [left, right] = node.passOn()
-        cur.set(node, {})
+        cur.set(node, new Map())
         cur = cur.get(node)
-        this.recur_node(left, cur)
-        this.recur_node(right, cur)
+        // checking if left and right are already pure
+        let uniq_left =  new Set()
+        for (const row of left) {
+            uniq_left.add(row[1])
+        }
+        let uniq_right = new Set()
+        for (const row of right) {
+            uniq_right.add(row[1])
+        }
+        if (uniq_left.size > 1) {
+            console.log('commencing left child')
+            this.recur_node(left, cur)
+        }
+        if (uniq_right.size > 1) {
+            console.log('commencing right child')
+            this.recur_node(right, cur)
+        }
     }
 }
+
+let testTree = new Tree(rows, 2)
+testTree.recur_node()
+console.log(testTree)
