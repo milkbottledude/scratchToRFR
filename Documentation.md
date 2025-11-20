@@ -11,11 +11,10 @@ Lets lay out the roadmap, don't worry its not that long:
 ### Chapter 2: Tree Model
 - 2.1: [Node Object](21-node-object)
 - 2.2: [Tree Object](22-tree-object)
-- 2.3: [Stop Criteria](22-stop-criteria)
-- 2.4: [Split Criteria](22-split-criteria)
+- 2.3: [Tree Prediction](23-tree-prediction)
+- 2.4: [Node Prediction](24-node-prediction)
 - 2.5: [Optimizing Split](23-optimizing-split) (Coming Soon!)
-- 2.6: [Branch Recursion](24-branch-recurse)
-- 2.7: [Tree Prediction](25-tree-prediction)
+- 2.6: [Criterion: MAE](26-criterion-mae)
 
 ### Chapter 3: Forest Management
 - 3.1: [n_estimators = n trees](31-n_estimators--n-trees)
@@ -421,17 +420,19 @@ class Tree {
         this.btstr_rows = bootstrap_rows(all_rows)
         this.min_samp_leaf = min_samp_leaf
         this.no = 0
-        this.nodes = new Map()
+        // this.nodes = new Map()
+        this.JSONdata = {}
+        this.leaves = [] // remove in production 
     }
 ```
 
 The `Tree` class takes in 2 args: 'all_rows' = the entire dataset excluding the first row of column names, and 'min_samp_leaf', the minimum number of samples a node must have for it to be considered a leaf and stop splitting.
 
-'this.no' tracks the number of node instances created in this tree, while 'this.nodes' will track the nodes that grow within the tree. The 'this.nodes' structure will be akin to a tree branching out from the root and will be rather confusing, so heres a concept diagram I drew of it.
+'this.no' tracks the number of node instances created in this tree, while ~~'this.nodes'~~ 'this.JSONdata' will track the nodes that grow within the tree. The 'this.JSONdata' structure will be akin to a tree branching out from the root. It's rather confusing, so heres a concept diagram I drew of it.
 
 ***INSERT HAND DRAWN FIG HERE***
 
-Fig 2.1: Concept diagram of this.nodes map
+Fig 2.1: Concept diagram of ~~this.nodes~~ this.JSONdata map
 
 ***explain hand drawn fig***
 
@@ -529,6 +530,107 @@ Tree {
 
 Looks good, the most important thing here is the value of 'this.no'. The fact that its = 26 is good, because that means the recursion worked and 26 nodes were created. This is impossible to tell from printing nodes, as console.log doesn't print out the full structure.
 
-One thing I realized is that I forgot to store the leaf data. The most valuable part of the Tree class, and it completely slipped my mind. Sometimes I wonder if my iq is enough to make a career out of this.
+One thing I realized is that I forgot to create a function to store the leaf data. The most valuable part of the Tree class, and it completely slipped my mind. Sometimes I wonder if my iq is enough to make a career out of this.
 
-***next plan of action, to figure out a way to store leaf node data. perhaps within the nodes map? idk figure it out***
+After a day of brainstorming, I've decided to scrap this.nodes for this.JSONdata. They are both similar in that they will both store nested node data, but JSONdata won't store the actual class instances, just the relevant data needed for prediction.
+
+While this.nodes stores the whole object as the key, I will only save:
+
+1) insertion order index (key)
+2) feature index (key inside val, which is a nested dict)
+3) threshold value (key inside nested dict val)
+
+To save the feature index, I have edited the `passOn` method inside the Node class, making it return not just the left and right side data, but also the index value of the column feature name as well as the optimal feature threshold value:
+
+```
+...
+        return [leftData, rightData, chosenFeatInd, threshold]
+```
+Now lets edit the recur_node method. I'll split it into parts so its easier to understand.
+
+```
+    recur_node = (node_rows=this.btstr_rows, cur=this.JSONdata) => {
+...
+        node.pickBest()
+        let [left, right, featInd, thres_val] = node.passOn()
+        if (Object.keys(cur).length === 0) {
+            cur[0] = {'ftInd': featInd, 'threshold': thres_val, 'kids': {}}
+            cur = cur[0]['kids']
+        } else {
+            cur[1] = {'ftInd': featInd, 'threshold': thres_val, 'kids': {}}
+            cur = cur[1]['kids']
+        }
+...
+```
+After retrieving the 4 results from node.passOn(), I add the feature index (featInd) and feature threshold (thres_val) to 'cur' as values of a nested dict. The third key in the dict value, 'kids', is for the 2 child nodes (which will receive 'left' and 'right' as their node_rows argument).
+
+As for why I set the dicts as values and set the keys as 0 and 1, this is for when we save the JSONdata and want to access it for prediction in the future. We need to know which cur[x] is left or right. So 0 represents left, and 1 represents. 
+
+I apologise if my explanations are too incoherent, it might not look like it to you but I still consider myself a newbie in the world of machine learning. If you're open for face-to-face discussions, hit me up on telegram :). We could grab a coffee, and maybe become friends.
+```
+...
+        let uniq_left =  new Set()
+        let leftY = []
+        for (const row of left) {
+            uniq_left.add(row[1])
+            leftY.push(row[1])
+        }
+        let uniq_right = new Set()
+...
+```
+Here, I'm just creating:
+1) a set, to keep track of unique values. If the set length <= 1, that means 'left' is pure and does not need to be split further.
+2) a list, to pass the single column of y_values into calcAvg() should the next child node be a leaf node. I knew making the calcAvg() function global would come in handy.
+
+I do the same for the 'right' later on.
+
+```
+...
+        if (uniq_left.size > 1 && leftY.length > this.min_samp_leaf) {
+            console.log('commencing left child')
+            this.recur_node(left, cur)
+        } else {
+            console.log('stop criteria met, ending node')
+            cur[0] = {'leaf_avg': calcAvg(leftY)}
+            this.leaves.push(cur[0]) // remove in production
+        }
+        if (uniq_right.size > 1 || rightY.length <= this.min_samp_leaf) {
+...
+```
+First, I check if the 2 stopping criteria have been met. If no, then I call the recursive function 'recur_node' to create more node offsprings. 
+
+If yes, then we log the average y_val in the leaf and store it in cur[0], not cur[1] cuz this is the left side. 'this.leaves' is just to make sure the output is valid, its not important to the class infrastructure. 
+
+I just console.log it to make sure everythings running ok, which we will realise is a good idea soon when I show you the output logs.
+
+```
+let testTree = new Tree(rows, 2)
+testTree.recur_node()
+console.log(testTree.no)
+console.log(testTree.leaves)
+
+Output: 
+...
+30
+[
+  562.5, 22000, 40000,   NaN,   NaN,
+    800,   500,   780,   690,     6,
+     17,    18,    20,   680,   450,
+   2825,  1250,    11,  32.5,  1025,
+   4175,    27,  5000,  5500,  8000,
+   3075, 10000,  4700, 23000, 22000,
+   8850
+]
+```
+
+Looks ok, the values are far apart from each other. Earlier, I had mistakenly singled out row[1] for the y_column when it was actually row[row.length-1], resulting in the list above having longitude values instead of house prices.
+
+If you have a sharp eye, you would have noticed the NaN values. That happens when feature the node is trying to split on has only one unique value in all the input rows. For eg, it just so happens that all the rows fed to a particular node have bedroom number = 1, and the node chose no. of bedrooms as one of its sqrt(n) features.
+
+While it does not pose a problem at the moment, it will when we do prediction and the test row happens to have, for example bedroom number = 0. It will encounter a leaf node with mean value = NaN. 
+
+Fret not, for I have a simple but rather brute fix for this, which I'll show it to you in a second as we transition into our next chapter. 
+
+So far, we have been focusing on training the model. In this next chapter, we will be focusing on the prediction aspect of the Tree class.
+
+### 2.3: Tree Prediction

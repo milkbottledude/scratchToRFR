@@ -1,7 +1,7 @@
 const fs = require("fs");
 
 // Read CSV as text
-const unclean_csv = fs.readFileSync("smol_test_data.csv", "utf8");
+const unclean_csv = fs.readFileSync("smol_pt2.csv", "utf8");
 const csv = unclean_csv.replace(/\r/g, "");
 
 // remove either the last or 2nd last col depending on whether u want to train for jb or wdlands. 
@@ -110,7 +110,6 @@ class Node {
         // tbc when we need to save the tree's data (threshold values, chosen feats, etc)
     }
     testThres = (croppedData, binary=false) => {
-        console.log(croppedData.slice(0, 5))
         let lowest = Infinity
         let thres_val = undefined
         let x_vals = croppedData.map(row => row[0])
@@ -150,7 +149,6 @@ class Node {
             let ftInd = colArr.indexOf(ft)
             let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
             let binary = false
-            console.log(cropData.slice(0, 4))
             if (typeof cropData[0][0] === 'boolean') {
                 binary = true
             }
@@ -182,18 +180,18 @@ class Node {
         // new nodes will continue what we started o7
         // const node1 = new Node(leftData, feature_bagging())
         // const node2 = new Node(rightData, feature_bagging())
-        return [leftData, rightData]
+        return [leftData, rightData, chosenFeatInd, threshold]
     }
 }
 
-// testing node
-let testNode = new Node(bootstrap_rows(), feature_bagging())
+// // testing node
+// let testNode = new Node(bootstrap_rows(), feature_bagging())
+// // console.log(testNode)
+// testNode.loopFts()
 // console.log(testNode)
-testNode.loopFts()
-console.log(testNode)
-testNode.pickBest()
-console.log(testNode)
-console.log(testNode.passOn())
+// testNode.pickBest()
+// console.log(testNode)
+// console.log(testNode.passOn())
 
 // Tree Class
 class Tree {
@@ -201,41 +199,59 @@ class Tree {
         this.btstr_rows = bootstrap_rows(all_rows)
         this.min_samp_leaf = min_samp_leaf
         this.no = 0
-        this.nodes = new Map()
+        // this.nodes = new Map()
+        this.JSONdata = {}
+        // this.leaves = [] // remove in production 
     }
 
-    recur_node = (node_rows=this.btstr_rows, cur=this.nodes) => {
-        if (node_rows.length <= this.min_samp_leaf) {
-            console.log('min_samp_leaf fulfilled, ending node')
-            return 
-        }
+    recur_node = (node_rows=this.btstr_rows, cur=this.JSONdata) => {
         const node = new Node(node_rows, feature_bagging())
         this.no++
         node.loopFts()
         node.pickBest()
-        let [left, right] = node.passOn()
-        cur.set(node, new Map())
-        cur = cur.get(node)
+        let [left, right, featInd, thres_val] = node.passOn()
+        if (Object.keys(cur).length === 0) {
+            cur[0] = {'ftInd': featInd, 'threshold': thres_val, 'kids': {}}
+            cur = cur[0]['kids']
+        } else {
+            cur[1] = {'ftInd': featInd, 'threshold': thres_val, 'kids': {}}
+            cur = cur[1]['kids']
+        }
         // checking if left and right are already pure
         let uniq_left =  new Set()
+        let leftY = []
+
         for (const row of left) {
-            uniq_left.add(row[1])
+            uniq_left.add(row[row.length - 1])
+            leftY.push(row[row.length - 1])
         }
         let uniq_right = new Set()
+        let rightY = []
         for (const row of right) {
-            uniq_right.add(row[1])
+            uniq_right.add(row[row.length - 1])
+            rightY.push(row[row.length - 1])
         }
-        if (uniq_left.size > 1) {
+        if (uniq_left.size > 1 && leftY.length > this.min_samp_leaf) {
             console.log('commencing left child')
             this.recur_node(left, cur)
+        } else {
+            console.log('stop criteria met, ending node')
+            cur[0] = {'leaf_avg': calcAvg(leftY)}
+            // this.leaves.push(calcAvg(leftY))
         }
-        if (uniq_right.size > 1) {
+        if (uniq_right.size > 1 && rightY.length > this.min_samp_leaf) {
             console.log('commencing right child')
             this.recur_node(right, cur)
+        } else {
+            console.log('stop criteria met, ending node')
+            cur[1] = {'leaf_avg': calcAvg(rightY)}
+            // this.leaves.push(calcAvg(rightY))
         }
     }
 }
 
 let testTree = new Tree(rows, 2)
 testTree.recur_node()
-console.log(testTree)
+// console.log(testTree.btstr_rows)
+console.log(testTree.no)
+console.log(testTree.leaves)
