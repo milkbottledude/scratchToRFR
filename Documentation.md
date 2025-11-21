@@ -634,3 +634,12 @@ Fret not, for I have a simple but rather brute fix for this, which I'll show it 
 So far, we have been focusing on training the model. In this next chapter, we will be focusing on the prediction aspect of the Tree class.
 
 ### 2.3: Tree Prediction
+
+In order to do prediction, we will need the data from the Tree object's this.JSONdata. It contains all the feature indexes and thresholds for the node splits. Naturally, that means we need a method to export the JSONdata object into a JSON file.
+
+Originally, I had planned for the 'toJSON' function to be a class method inside the Tree object, but decided to make it a global function for the forest manager to call instead. This makes more sense as then we would only need to call it once and not x times, where x is the number of trees in the forest.
+
+```
+global toJSON here, w arg for json filepath, but hv default value 'rfrData.json'
+```
+
