@@ -59,7 +59,7 @@ const calcAvg = (arr) => {
     return avg
 } 
 
-
+// saving dict data
 let filePath = 'rfrData_1.json'
 
 const toJSON = (dictData, filepath=filePath) => {
@@ -72,7 +72,6 @@ const fromJSON = (filepath=filePath) => {
     const dict = JSON.parse(raw);
     return dict
 }
-
 
 // Node Class
 class Node {
@@ -128,8 +127,18 @@ class Node {
         let thres_val = undefined
         let x_vals = croppedData.map(row => row[0])
         let unique_x = new Set(x_vals)
+        unique_x = [...unique_x]
+        let unique_thres = new Set()
+        for (let i = 1; i < unique_x.length; i++) {
+            let x = unique_x[i-1]
+            let y = unique_x[i]
+            let thres = (x+y)/2
+            unique_thres.add(thres)
+        }
+        // MAKE CHANGE HERE, UNIQ_THRES N ADD ALL IN BTW VALUES FRM UNIQUE_X
+        // done
         if (binary === false) {
-            for (const i of unique_x) {
+            for (const i of unique_thres) {
                     let left = croppedData.filter(row => Number(row[0]) <= Number(i))
                     // console.log(left.length)
                     // console.log(left)
@@ -262,12 +271,43 @@ class Tree {
             // this.leaves.push(calcAvg(rightY))
         }
     }
+
+
+}
+
+// if i make a forest class, this func is going in it as a method
+const predictRow = (testRow, dataDict, num=0) => {
+    console.log('NIGGGGGGGGGGGG')
+    console.log(dataDict)
+    let subDict = dataDict[num]
+    if ('leaf_avg' in subDict) {
+        if (subDict['leaf_avg'] === null) {
+            if (num == 0) {
+                return predictRow(testRow, dataDict, 1)
+            } else {
+                return predictRow(testRow, dataDict, 0)
+            }
+        } else {
+            return subDict['leaf_avg']
+        }
+    } else {
+        let ftInd = subDict['ftInd']
+        let threshold = subDict['threshold']
+        if (testRow[ftInd] <= threshold) {
+            return predictRow(testRow, subDict['kids'], 0)
+        } else {
+            return predictRow(testRow, subDict['kids'], 1)
+        }
+    }
 }
 
 // let testTree = new Tree(rows)
 // testTree.recur_node()
-// // console.log(testTree.btstr_rows)
 // console.log(testTree.JSONdata)
-// toJSON(testTree.JSONdata, 'treeData_1.json')
+let dict2 = fromJSON('treeData_2.json')
 
-console.log(fromJSON('treeData_1.json'))
+let dict1 = fromJSON('treeData_1.json')
+let unseenRow = [8, 318, 135, 3830, 15.2, 79]
+let actualY = 18.2
+let predY = predictRow(unseenRow, dict2)
+console.log(actualY, predY)

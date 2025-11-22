@@ -6,21 +6,22 @@ Lets lay out the roadmap, don't worry its not that long:
 
 ### Chapter 1: Data
 - 1.1: [Bootstrapping rows from scratch](#11-bootstrapping-rows-from-scratch)
-- 1.2: [Feature Bagging](#22-feature-bagging)
+- 1.2: [Feature Bagging](#12-feature-bagging)
 
 ### Chapter 2: Tree Model
-- 2.1: [Node Object](21-node-object)
-- 2.2: [Tree Object](22-tree-object)
-- 2.3: [Tree Prediction](23-tree-prediction)
-- 2.4: [Node Prediction](24-node-prediction)
-- 2.5: [Optimizing Split](23-optimizing-split) (Coming Soon!)
-- 2.6: [Criterion: MAE](26-criterion-mae)
+- 2.1: [Node Object](#21-node-object)
+- 2.2: [Tree Object](#22-tree-object)
+- 2.3: [Tree Prediction](#23-tree-prediction)
 
 ### Chapter 3: Forest Management
-- 3.1: [n_estimators = n trees](31-n_estimators--n-trees)
-- 3.2: [Forest Prediction](32-forest-prediction)
+- 3.1: [n_estimators = n trees](#31-n_estimators--n-trees)
+- 3.2: [Forest Prediction](#32-forest-prediction)
 
-### Chapter 4: [Conclusion](#conclusion)
+### Chapter 4: Model Optimization
+- 4.1: [Single-use Features](#41-single-use-features)
+- 4.2: [Criterion: MAE](#42-criterion-mae)
+
+### Chapter 5: [Conclusion](#conclusion)
 
 
 ## 📚 Documentation
@@ -265,6 +266,27 @@ That was for numerical columns. For binary columns its easier as we don't have t
 
 Afterwards, I simply return the lowest error obtained and the threshold value that obtained it.
 
+EDIT: I changed testThres such that instead of looping through unique values in the column, I looped through the **midpoints** of those unique values.
+
+To do this, I simply squeezed abit of code inside, *before* comparing the row values with the threshold and *after* declaring the 'unique_x' set.
+
+```
+        let unique_x = new Set(x_vals)
+        unique_x = [...unique_x]
+        let unique_thres = new Set()
+        for (let i = 1; i < unique_x.length; i++) {
+            let x = unique_x[i-1]
+            let y = unique_x[i]
+            let thres = (x+y)/2
+            unique_thres.add(thres)
+        }
+        // MAKE CHANGE HERE, UNIQ_THRES N ADD ALL IN BTW VALUES FRM UNIQUE_X
+```
+
+I converted unique_x into a list of a set so that I could index into it with a for loop. Then I took the midpoints between all adjacent values in unique_x and appended them to unique_thres.
+
+This is how the default RFR model in scikit-learn operates, so I should probably follow suit. And we can always try out both ways during testing to see which produces more accurate results. The traditional method will probably do better, but we'll see.
+
 ```
     loopFts = () => {
         // console.log(this.input_rows.slice(0, 4))
@@ -377,9 +399,6 @@ Its better to compare with the MSE of the entire [dataset](smol_test_data.csv), 
 
 That wraps up chapter 2.1 for now, man what a subchapter. Never in my life have I wrote so much class code in one sitting.
 Definitely one of the more satisfying coding sessions I've had. 
-
-##### // dont forget still gotta split the data to next node after finding optimal thres n feat
-##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array?
 
 ### 2.2: Tree Object
 
@@ -671,7 +690,7 @@ console.log(testTree.JSONdata)
 toJSON(testTree.JSONdata, 'treeData_1.json')
 ```
 
-The console.log(testTree.JSONdata) would not show the entire nested structure of the object, but after saving it to a JSON file we can now see it in its full glory.
+The console.log(testTree.JSONdata) would not show the entire nested structure of the object, but after saving it to a [JSON file](treeData_1.json) we can now see it in its full glory.
 
 ![Fig 2.2](pics/treeData1_snip.jpg)
 
@@ -679,7 +698,7 @@ Fig 2.2: Sneak peek at the nested objects
 
 As we can see from the top right, the rough tree structure is there. Looking more in depth on the first few nodes, we can see the left side reach leaf nodes at depth = 5, which I think is a good number for a dataset as small as this (50 rows). 
 
-Looks pretty similar to Fig 2.1 right? 
+Looks pretty similar to Fig 2.1 right? I also made a [second JSON](treeData_2.json) for another Tree instance's data after I changed the testThres() method in the Node class, which uses midpoint values as thresholds instead of the actual unique values.
 
 Now that we have the trained model data saved, we no longer have to train the model everytime we want to use it. Instead, we can call fromJSON() and start predicting from there. Lets see if fromJSON() works as expected.
 
@@ -691,16 +710,87 @@ Output:
 
 ```
 {
-  '0': { ftInd: 3, threshold: 2833, kids: { '0': [Object], '1': [Object] } }
+  ftInd: 3,
+  threshold: 2833,
+  kids: {
+    '0': { ftInd: 0, threshold: 4, kids: [Object] },
+    '1': { ftInd: 2, threshold: 130, kids: [Object] }
+  }
 }
-dict to JSON complete
 ```
 
-Looks good, the root node's threshold value is the same as that in Fig 2.2, and the nested objects are there, even if console.log does not print them out fully. Now we can start predicting for real.
+Looks good, the root node's threshold value is the same as that in Fig 2.2, and the nested objects are there, even if console.log does not print them out fully. Now we can start making the prediction method inside the Tree class.
 
 
-***CONSTRUCTION OF PREDICTION METHOD HERE, THEN REPLACE W FUNCTION NAME BELOW***
+```
+const predictRow = (testRow, dataDict, num=0) => {
+    let subDict = dataDict[num]
+    if ('leaf_avg' in subDict) {
+        if (subDict['leaf_avg'] === null) {
+            if (num == 0) {
+                return predictRow(testRow, dataDict, 1)
+            } else {
+                return predictRow(testRow, dataDict, 0)
+            }
+        } else {
+            return subDict['leaf_avg']
+        }
+    } else {
+        let ftInd = subDict['ftInd']
+        let threshold = subDict['threshold']
+        if (testRow[ftInd] <= threshold) {
+            return predictRow(testRow, subDict['kids'], 0)
+        } else {
+            return predictRow(testRow, subDict['kids'], 1)
+        }
+    }
+}
+```
+
+`predictRow` is another recursive function, similar to 'recur_node' but for predicting instead. 
+
+Remember that simple fix I had for when 'leaf_avg' == NaN? Its in the first 'if' statement of the function. So when the method encounters a NaN (now 'null'), it ignores that leaf and looks at the sibling node.
+
+This aligns with how DTR and RFR models in scikit-learn operate, they ignore nodes that dont split the input data and carry on with another random sample of sqrt(n) features.
+
+If its not that deep into the Tree yet and no leaf nodes have been encountered, we extract the threshold and feature index values from the dict, before checking if the target column's values is greater or smaller than the threshold.
+
+If val > threshold, we traverse to the node for values greater than, which would be subDict['kids'][1]. Otherwise, we go to subDict['kids'][0]. We keep going until we reach a leaf node, and you've already seen what happens then.
+
+Time to test. The 50 rows in [mpg dataset](smol_pt2.csv) is actually part of a much bigger dataset, which you can download from Kaggle. I'll randomly take a row from there thats not in the training data, and pass it into predictRow() for prediction.
+
+```
+let dict1 = fromJSON('treeData_1.json')
+let unseenRow = [8, 318, 135, 3830, 15.2, 79]
+let actualY = 18.2
+let predY = predictRow(unseenRow, dict1)
+console.log(actualY, predY)
+
+Output: 18.2 9
+```
+
+OUR FIRST PREDICTION WOO! But not a great one, underestimated the actual value by 9.2mi/gal, over 50%! But this is with the data from treeData_1.json, which was obtained when the model was training with unique column values as thresholds.
+
+Lets try treeData_2.json, which follows scikit-learn's tree models and was trained with values midpoints as the threshold values.
+
+```
+let dict2 = fromJSON('treeData_2.json')
+...
+let predY = predictRow(unseenRow, dict2)
+console.log(actualY, predY)
+
+Output: 18.2 23
+```
+Overshot, but by 4.8mi/gal, much less than before. And before you say this Tree model sucks, remember that it was only trained on 50 rows of data. Shes no neural network, but shes no linear regressor either.
+
+Of course, we can do better. This is just a single Tree in a forest! Once we get the forest manager up and running, we can average out the predictions of multiple Tree instances, which (fingers crossed) will lead to smaller deviations from the actual value.
+
+## Chapter 3 - Forest Management
+### 3.1: n_estimators = n trees
 
 
 
-The 50 rows in [mpg dataset](smol_pt2.csv) is actually part of a much bigger dataset, which you can download from Kaggle. I'll randomly take a row from there thats not in the training data, and pass it into FUNCTION_HEREEEEEEEEEEEE() for prediction.
+
+
+
+##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array? 2) dun forget put the diagram pic at line 452, also 3) going past min_leaf_samp is a problem
