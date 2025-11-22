@@ -1,0 +1,212 @@
+{
+  "0": {
+    "ftInd": 3,
+    "threshold": 2833,
+    "kids": {
+      "0": {
+        "ftInd": 0,
+        "threshold": 4,
+        "kids": {
+          "0": {
+            "ftInd": 3,
+            "threshold": 2234,
+            "kids": {
+              "0": {
+                "ftInd": 4,
+                "threshold": 14,
+                "kids": {
+                  "0": {
+                    "ftInd": 3,
+                    "threshold": 2228,
+                    "kids": {
+                      "0": {
+                        "leaf_avg": 25
+                      },
+                      "1": {
+                        "leaf_avg": 26
+                      }
+                    }
+                  },
+                  "1": {
+                    "ftInd": 3,
+                    "threshold": 1835,
+                    "kids": {
+                      "0": {
+                        "leaf_avg": 26
+                      },
+                      "1": {
+                        "leaf_avg": 27
+                      }
+                    }
+                  }
+                }
+              },
+              "1": {
+                "ftInd": 1,
+                "threshold": 113,
+                "kids": {
+                  "0": {
+                    "ftInd": 4,
+                    "threshold": 15,
+                    "kids": {
+                      "0": {
+                        "leaf_avg": 24
+                      },
+                      "1": {
+                        "leaf_avg": 25
+                      }
+                    }
+                  },
+                  "1": {
+                    "leaf_avg": 22
+                  }
+                }
+              }
+            }
+          },
+          "1": {
+            "ftInd": 2,
+            "threshold": 90,
+            "kids": {
+              "0": {
+                "leaf_avg": 21
+              },
+              "1": {
+                "leaf_avg": 22
+              }
+            }
+          }
+        }
+      },
+      "1": {
+        "ftInd": 2,
+        "threshold": 130,
+        "kids": {
+          "0": {
+            "ftInd": 3,
+            "threshold": 3504,
+            "kids": {
+              "0": {
+                "ftInd": 4,
+                "threshold": 14.5,
+                "kids": {
+                  "0": {
+                    "leaf_avg": 18
+                  },
+                  "1": {
+                    "ftInd": 1,
+                    "threshold": 232,
+                    "kids": {
+                      "0": {
+                        "leaf_avg": 18
+                      },
+                      "1": {
+                        "leaf_avg": 19
+                      }
+                    }
+                  }
+                }
+              },
+              "1": {
+                "leaf_avg": 23
+              }
+            }
+          },
+          "1": {
+            "ftInd": 1,
+            "threshold": 360,
+            "kids": {
+              "0": {
+                "ftInd": 4,
+                "threshold": 13.5,
+                "kids": {
+                  "0": {
+                    "ftInd": 2,
+                    "threshold": 153,
+                    "kids": {
+                      "0": {
+                        "leaf_avg": 14
+                      },
+                      "1": {
+                        "leaf_avg": 11
+                      }
+                    }
+                  },
+                  "1": {
+                    "ftInd": 2,
+                    "threshold": 193,
+                    "kids": {
+                      "0": {
+                        "leaf_avg": 9
+                      },
+                      "1": {
+                        "leaf_avg": 10
+                      }
+                    }
+                  }
+                }
+              },
+              "1": {
+                "ftInd": 2,
+                "threshold": 180,
+                "kids": {
+                  "0": {
+                    "ftInd": 4,
+                    "threshold": 10,
+                    "kids": {
+                      "0": {
+                        "leaf_avg": 15
+                      },
+                      "1": {
+                        "ftInd": 3,
+                        "threshold": 4746,
+                        "kids": {
+                          "0": {
+                            "ftInd": 3,
+                            "threshold": 4464,
+                            "kids": {
+                              "0": {
+                                "leaf_avg": 14
+                              },
+                              "1": {
+                                "leaf_avg": 13
+                              }
+                            }
+                          },
+                          "1": {
+                            "leaf_avg": 12
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "1": {
+                    "ftInd": 0,
+                    "threshold": 8,
+                    "kids": {
+                      "0": {
+                        "ftInd": 1,
+                        "threshold": 429,
+                        "kids": {
+                          "0": {
+                            "leaf_avg": 15
+                          },
+                          "1": {
+                            "leaf_avg": 14
+                          }
+                        }
+                      },
+                      "1": {
+                        "leaf_avg": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

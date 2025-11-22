@@ -60,6 +60,20 @@ const calcAvg = (arr) => {
 } 
 
 
+let filePath = 'rfrData_1.json'
+
+const toJSON = (dictData, filepath=filePath) => {
+    fs.writeFileSync(filepath, JSON.stringify(dictData, null, 2));
+    console.log("dict to JSON complete");
+}
+
+const fromJSON = (filepath=filePath) => {
+    const raw = fs.readFileSync(filepath);
+    const dict = JSON.parse(raw);
+    return dict
+}
+
+
 // Node Class
 class Node {
     constructor(input_rows, features) {
@@ -250,8 +264,10 @@ class Tree {
     }
 }
 
-let testTree = new Tree(rows, 2)
-testTree.recur_node()
-// console.log(testTree.btstr_rows)
-console.log(testTree.no)
-console.log(testTree.leaves)
+// let testTree = new Tree(rows)
+// testTree.recur_node()
+// // console.log(testTree.btstr_rows)
+// console.log(testTree.JSONdata)
+// toJSON(testTree.JSONdata, 'treeData_1.json')
+
+console.log(fromJSON('treeData_1.json'))

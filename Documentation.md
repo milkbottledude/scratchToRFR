@@ -637,9 +637,70 @@ So far, we have been focusing on training the model. In this next chapter, we wi
 
 In order to do prediction, we will need the data from the Tree object's this.JSONdata. It contains all the feature indexes and thresholds for the node splits. Naturally, that means we need a method to export the JSONdata object into a JSON file.
 
-Originally, I had planned for the 'toJSON' function to be a class method inside the Tree object, but decided to make it a global function for the forest manager to call instead. This makes more sense as then we would only need to call it once and not x times, where x is the number of trees in the forest.
+Originally, I had planned for the 'toJSON' function to be a method inside the Tree class, but decided to make it a global function for the forest manager to call instead. This makes more sense as then we would only need to call it once and not x times, where x is the number of trees in the forest.
 
 ```
-global toJSON here, w arg for json filepath, but hv default value 'rfrData.json'
+let filePath = 'rfrData_1.json'
+
+const toJSON = (dictData, filepath=filePath) => {
+    fs.writeFileSync(filepath, JSON.stringify(dictData, null, 2));
+    console.log("dict to JSON complete");
+}
 ```
 
+Now we need a function to retrieve that stored data, I'll call it 'fromJSON'
+
+```
+const fromJSON = (filepath=filePath) => {
+    const raw = fs.readFileSync(filepath);
+    const dict = JSON.parse(raw);
+    return dict
+}
+```
+
+I made it so that the data saving and data retrieval process is as hassle free as possible, placing default args wherever I can.
+
+Now lets get on with the prediction, starting with saving our tree data. As we are saving **tree** data not forest data, I'll be changing the filepath argument when calling toJSON(). 
+
+Also, forgot to mention that I'll be using the ['miles per galon of a car' dataset](smol_pt2.) from now on. Its 'mpg' y column has less deviations than the [house prices dataset](smol_test_data.csv)
+
+```
+let testTree = new Tree(rows)
+testTree.recur_node()
+console.log(testTree.JSONdata)
+toJSON(testTree.JSONdata, 'treeData_1.json')
+```
+
+The console.log(testTree.JSONdata) would not show the entire nested structure of the object, but after saving it to a JSON file we can now see it in its full glory.
+
+![Fig 2.2](pics/treeData1_snip.jpg)
+
+Fig 2.2: Sneak peek at the nested objects
+
+As we can see from the top right, the rough tree structure is there. Looking more in depth on the first few nodes, we can see the left side reach leaf nodes at depth = 5, which I think is a good number for a dataset as small as this (50 rows). 
+
+Looks pretty similar to Fig 2.1 right? 
+
+Now that we have the trained model data saved, we no longer have to train the model everytime we want to use it. Instead, we can call fromJSON() and start predicting from there. Lets see if fromJSON() works as expected.
+
+```
+console.log(fromJSON('treeData_1.json'))
+```
+
+Output:
+
+```
+{
+  '0': { ftInd: 3, threshold: 2833, kids: { '0': [Object], '1': [Object] } }
+}
+dict to JSON complete
+```
+
+Looks good, the root node's threshold value is the same as that in Fig 2.2, and the nested objects are there, even if console.log does not print them out fully. Now we can start predicting for real.
+
+
+***CONSTRUCTION OF PREDICTION METHOD HERE, THEN REPLACE W FUNCTION NAME BELOW***
+
+
+
+The 50 rows in [mpg dataset](smol_pt2.csv) is actually part of a much bigger dataset, which you can download from Kaggle. I'll randomly take a row from there thats not in the training data, and pass it into FUNCTION_HEREEEEEEEEEEEE() for prediction.
