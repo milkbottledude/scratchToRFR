@@ -1,55 +1,5 @@
 const fs = require("fs");
 
-// Read CSV as text
-const unclean_csv = fs.readFileSync("smol_pt2.csv", "utf8");
-const csv = unclean_csv.replace(/\r/g, "");
-
-// remove either the last or 2nd last col depending on whether u want to train for jb or wdlands. 
-// If the csv is another dataset, den issok
-let rows = csv.split("\n")
-rows = rows.map(line => line.split(','))
-
-const colArr = rows.shift()
-
-// converting number strings to numbers n binary strings to js binary
-rows = rows.map(line =>
-    line.map(v => {
-        if (v === "True") return true
-        if (v === "False") return false
-        return Number(v);
-    })
-);
-
-const len_trng_data = rows.length
-const bootstrap_rows = (trngRows=rows) => {
-    let tree_data = []
-    for (let i = 0; i < len_trng_data; i ++) {
-        let ran_int = Math.floor(Math.random() * len_trng_data)
-        tree_data.push(trngRows[ran_int])
-    }
-    // console.log(tree_data.length, len_trng_data) // will remove during production
-    // console.log(tree_data[0]) // will remove during production
-    return tree_data
-}
-
-const used_goods = []
-// supply for each node
-// after removing the y_columns from 'colArr'
-const feature_bagging = (col_names=colArr, n_fts=undefined) => {
-    let node_ft_no = n_fts
-    if (!node_ft_no) {
-        node_ft_no = Math.floor(Math.sqrt(col_names.length))
-    }
-    let col_names_node = col_names.slice()
-    const node_cols = []
-    for (let i = 0; i < node_ft_no; i++) {
-        ind = Math.floor(Math.random() * (col_names_node.length-1))
-        chosen = col_names_node.splice(ind, 1)
-        node_cols.push(chosen)
-    }
-    return node_cols
-}
-
 const calcAvg = (arr) => {
     let sum = 0
     for (const num of arr) {
@@ -62,23 +12,14 @@ const calcAvg = (arr) => {
 // saving dict data
 let filePath = 'rfrData_1.json'
 
-const toJSON = (dictData, filepath=filePath) => {
-    fs.writeFileSync(filepath, JSON.stringify(dictData, null, 2));
-    console.log("dict to JSON complete");
-}
-
-const fromJSON = (filepath=filePath) => {
-    const raw = fs.readFileSync(filepath);
-    const dict = JSON.parse(raw);
-    return dict
-}
-
 // Node Class
 class Node {
-    constructor(input_rows, features) {
+    constructor(input_rows, features, allCols) {
         this.input_rows = input_rows
         this.ftError = {}
         this.ftThres = {}
+        this.colArr = features
+        this.allCols = allCols
         for (const feat of features) {
             this.ftError[feat] = Infinity
             this.ftThres[feat] = undefined
@@ -118,9 +59,6 @@ class Node {
             pure_rows = false
         }
         return pure_rows
-    }
-    JSONsave = () => {
-        // tbc when we need to save the tree's data (threshold values, chosen feats, etc)
     }
     testThres = (croppedData, binary=false) => {
         let lowest = Infinity
@@ -165,11 +103,11 @@ class Node {
         return [lowest, thres_val]
     }
     // this first
-    loopFts = () => {
+    loopFts = (colArr) => {
         // console.log(this.input_rows.slice(0, 4))
         for (const ft in this.ftError) {
-            console.log(ft)
             let ftInd = colArr.indexOf(ft)
+            console.log(this.input_rows)
             let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
             let binary = false
             if (typeof cropData[0][0] === 'boolean') {
@@ -183,7 +121,7 @@ class Node {
     }
     passOn = () => {
         let chosenFeat = this.bestFt[0]
-        let chosenFeatInd = colArr.indexOf(chosenFeat)
+        let chosenFeatInd = this.allCols.indexOf(chosenFeat)
         let leftData = undefined
         let rightData = undefined
         let threshold = this.bestFt[1]
@@ -207,30 +145,38 @@ class Node {
     }
 }
 
-// // testing node
-// let testNode = new Node(bootstrap_rows(), feature_bagging())
-// // console.log(testNode)
-// testNode.loopFts()
-// console.log(testNode)
-// testNode.pickBest()
-// console.log(testNode)
-// console.log(testNode.passOn())
-
 // Tree Class
 class Tree {
-    constructor(all_rows, min_samp_leaf=1) {
-        this.btstr_rows = bootstrap_rows(all_rows)
+    constructor(all_rows, colArr, min_samp_leaf=1) {
+        this.btstr_rows = all_rows
         this.min_samp_leaf = min_samp_leaf
         this.no = 0
+        this.colArr = colArr
         // this.nodes = new Map()
         this.JSONdata = {}
         // this.leaves = [] // remove in production 
     }
 
+    feature_bagging = (allCols=this.colArr, n_fts=undefined) => {
+        let col_names = allCols.slice(0, -1)
+        let node_ft_no = n_fts
+        if (!node_ft_no) {
+            node_ft_no = Math.floor(Math.sqrt(col_names.length))
+        }
+        let col_names_node = col_names.slice()
+        const node_cols = []
+        for (let i = 0; i < node_ft_no; i++) {
+            let ind = Math.floor(Math.random() * (col_names_node.length))
+            let chosen = col_names_node.splice(ind, 1)
+            node_cols.push(chosen[0])
+        }
+        return node_cols
+    }
+
     recur_node = (node_rows=this.btstr_rows, cur=this.JSONdata) => {
-        const node = new Node(node_rows, feature_bagging())
+        const node = new Node(node_rows, this.feature_bagging(), this.colArr)
         this.no++
-        node.loopFts()
+        node.loopFts(this.colArr)
         node.pickBest()
         let [left, right, featInd, thres_val] = node.passOn()
         if (Object.keys(cur).length === 0) {
@@ -275,39 +221,109 @@ class Tree {
 
 }
 
-// if i make a forest class, this func is going in it as a method
-const predictRow = (testRow, dataDict, num=0) => {
-    console.log('NIGGGGGGGGGGGG')
-    console.log(dataDict)
-    let subDict = dataDict[num]
-    if ('leaf_avg' in subDict) {
-        if (subDict['leaf_avg'] === null) {
-            if (num == 0) {
-                return predictRow(testRow, dataDict, 1)
-            } else {
-                return predictRow(testRow, dataDict, 0)
-            }
-        } else {
-            return subDict['leaf_avg']
+// Forest Class
+class trainForest {
+    constructor(n_estimators, all_rows, min_samp_leaf=1) {
+        this.n_estimators = n_estimators
+        this.col_row = all_rows.shift()
+        // converting number strings to numbers n binary strings to js binary
+        this.trngRows = all_rows.map(line =>
+            line.map(v => {
+                if (v === "True") return true
+                if (v === "False") return false
+                return Number(v);
+            })
+        )
+        this.JSONdata = []
+        this.min_samp_leaf = min_samp_leaf
+    }
+
+    bootstrap_rows = (trngRows) => {
+        let tree_data = []
+        for (let i = 0; i < trngRows.length; i ++) {
+            let ran_int = Math.floor(Math.random() * trngRows.length)
+            tree_data.push(trngRows[ran_int])
         }
-    } else {
-        let ftInd = subDict['ftInd']
-        let threshold = subDict['threshold']
-        if (testRow[ftInd] <= threshold) {
-            return predictRow(testRow, subDict['kids'], 0)
-        } else {
-            return predictRow(testRow, subDict['kids'], 1)
+        return tree_data
+    }
+    trainTrees = () => {
+        for (let i = 1; i <= this.n_estimators; i++) {
+            let treeInst = new Tree(this.bootstrap_rows(this.trngRows), this.col_row)
+            treeInst.recur_node()
+            this.JSONdata.push(treeInst.JSONdata)
         }
+    }
+    toJSON = (dictData=this.JSONdata, filepath=filePath) => {
+        fs.writeFileSync(filepath, JSON.stringify(dictData, null, 2));
+        console.log("dict to JSON complete");
     }
 }
 
-// let testTree = new Tree(rows)
-// testTree.recur_node()
-// console.log(testTree.JSONdata)
-let dict2 = fromJSON('treeData_2.json')
+class predForest {
+    constructor(unseenRows) {
+        this.unseenRows = unseenRows
+    }
+    fromJSON = (filepath) => {
+        const raw = fs.readFileSync(filepath);
+        const dict = JSON.parse(raw);
+        return dict
+    }
+    predictRow = (testRow, dataDict, num=0) => {
+        let subDict = dataDict[num]
+        if ('leaf_avg' in subDict) {
+            if (subDict['leaf_avg'] === null) {
+                if (num == 0) {
+                    return this.predictRow(testRow, dataDict, 1)
+                } else {
+                    return this.predictRow(testRow, dataDict, 0)
+                }
+            } else {
+                return subDict['leaf_avg']
+            }
+        } else {
+            let ftInd = subDict['ftInd']
+            let threshold = subDict['threshold']
+            if (testRow[ftInd] <= threshold) {
+                return this.predictRow(testRow, subDict['kids'], 0)
+            } else {
+                return this.predictRow(testRow, subDict['kids'], 1)
+            }
+        }
+    }
+    predAll = (unseenRows=this.unseenRows, JSONpath=filePath) => {
+        let avgPreds = []
+        let dictS = this.fromJSON(JSONpath)
+        for (const row of unseenRows) {
+            let preds = []
+            for (const dict of dictS) {
+                let predY = this.predictRow(row, dict)
+                preds.push(predY)
+            }
+            avgPreds.push(calcAvg(preds))            
+        }
+        console.log(avgPreds)
+        return avgPreds
+    }
+}
 
-let dict1 = fromJSON('treeData_1.json')
-let unseenRow = [8, 318, 135, 3830, 15.2, 79]
+// Execution
+let training = (trngRows, trng_csv_path="smol_pt2.csv") => {
+    // Read CSV as text
+    const unclean_csv = fs.readFileSync(trng_csv_path, "utf8");
+    const csv = unclean_csv.replace(/\r/g, "");
+    let rows = csv.split("\n")
+    rows = rows.map(line => line.split(','))
+
+    testForest = new trainForest(3, trngRows)
+    testForest.trainTrees()
+    testForest.toJSON()
+}
+
+// training(rows)
+
+let unseenRow = [8, 318, 135, 3830, 15.2, 79] // for training u pass the y_column too, but for prediction u remove it
 let actualY = 18.2
-let predY = predictRow(unseenRow, dict2)
-console.log(actualY, predY)
+let testPred = new predForest([unseenRow])
+let predY = testPred.predAll()
+console.log(actualY, predY[0])
+

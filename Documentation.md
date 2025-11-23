@@ -788,6 +788,117 @@ Of course, we can do better. This is just a single Tree in a forest! Once we get
 ## Chapter 3 - Forest Management
 ### 3.1: n_estimators = n trees
 
+Lets create the Forest class and define the properties first, then carry on with methods afterwards.
+
+```
+class Forest {
+    constructor(n_estimators, all_rows, min_samp_leaf=1) {
+        this.n_estimators = n_estimators
+        this.col_row = all_rows.shift()
+        this.trngRows = all_rows
+        this.JSONdata = []
+        this.min_samp_leaf = min_samp_leaf
+    }
+```
+The first argument takes one of the key hyperparameters of every RFR model, 'n_estimators'. It decides how many trees we want in our forest, so naturally it should be stored in the Forest class and not the Tree or Node class.
+
+The second argument 'all_rows' accepts the entire csv as an array of row arrays. It pops the first row, which contains all the column names, and assigns it to 'this.col_row'. The remaining rows are assigned to 'this.trngRows'. The y_column **must** be the last column.
+
+'this.JSONdata' in the Forest class functions the same way as in the Tree class, storing the data needed for predictions. The only difference is that this one will store an array of Tree JSONdatas.
+
+```
+    trainTrees = () => {
+        for (let i = 1; i <= this.n_estimators; i++) {
+            let treeInst = new Tree(this.trngRows, this.col_row)
+            treeInst.recur_node()
+            this.JSONdata.push(treeInst.JSONdata)
+        }
+    }
+```
+`trainTrees` is basically just calling recur_node n-times, where n = number of trees, n_estimators. Instead of immediately exporting as JSON like before, we will now save the Tree data in the forest instance's JSONdata array.
+
+Lets set n-estimators to 3 and see how the output looks like.
+
+```
+testForest = new trainForest(3, rows)
+testForest.trainTrees()
+console.log(testForest.JSONdata)
+testForest.toJSON()
+```
+
+```
+...
+stop criteria met, ending node
+[
+  { '0': { ftInd: 3, threshold: 2859, kids: [Object] } },
+  { '0': { ftInd: 3, threshold: 2920.5, kids: [Object] } },
+  { '0': { ftInd: 3, threshold: 2911.5, kids: [Object] } }
+]
+dict to JSON complete
+```
+
+Looks good, an array of 3 dicts with nested dicts inside. The full array structure can be seen [here](rfrData_1), our first ever Forest data.
+
+Also, the length of the file is 654 lines, which aligns with the average lengths of the treeData json files (210 lines). When you multiple the number by 3, you get close to 654.
+
+Now lets use this forest data and move on to the final stage, where we can finally do prediction with a forest of trees.
+
+### 3.2: Forest Prediction
+
+Finna kick things off with **another** class, `predForest`. These things are great, I should have started using them sooner.
+
+```
+class predForest {
+    constructor(unseenRows) {
+        this.unseenRows = unseenRows
+    }
+    fromJSON = (filepath) => {...
+    }
+    predictRow = (testRow, dataDict, num=0) => {...
+    }
+```
+Just one argument to pass, the rows of data we want to predict the y values of. One downside though is that the my class only accepts an array of arrays, even if you only want to predict the y value for 1 row of data.
+
+As I doubt I'll be using them outside of the predForest class since we already tested the Tree instance prediction, I'll be moving the `fromJSON()`, `toJSON()`, and `predictRow` functions here to serve as methods. These 3 act as helper functions for `predAll()` below.
+
+I also moved the global function `feature_bagging()` into the Tree class for the same reason, and `bootstrap_rows()` into the Forest class. This is so that theres not so many random functions scattered about, which makes the codespace look much cleaner.
+
+```
+    predAll = (unseenRows=this.unseenRows, JSONpath=filePath) => {
+        let avgPreds = []
+        let dictS = this.fromJSON(JSONpath)
+        for (const row of unseenRow) {
+            let preds = []
+            for (const dict of dictS) {
+                let predY = this.predictRow(unseenRow, dict)
+                preds.push(predY)
+            }
+            avgPreds.push(calcAvg(preds))            
+        }
+        console.log(avgPreds)
+        return avgPreds
+    }
+```
+
+One downside of `forestPred()` is that it only takes in a row of rows, even if you only want to predict a single row. The array of prediction rows are accepted as the first argument, 'unseenRow'.
+
+Iteratating over each row inside unseenRows, I reference each treeDict inside dictS and get the prediction of each tree before appending them to the 'preds' array. Then I get the mean value of 'preds' and append it to avgPreds. At the end of it all, I return avgPreds, which stores the average of each tree's predictions on all the input rows.
+
+Lets see the output of forestPred() on a single row of testData. I'll probably have to spend the next 15 minutes catching bugs, but you don't get to see that don't worry haha.
+
+```
+let unseenRow = [8, 318, 135, 3830, 15.2, 79]
+let actualY = 18.2
+let testPred = new predForest([unseenRow])
+let predY = testPred.predAll()
+console.log(actualY, predY[0])
+
+Output: 18.2 14.333333333333334
+```
+
+Would you look at that! While a 21% error may not be pretty, but its an improvement from the single tree prediction, which had a 26% error. Again, I'd like to remind you that the training data consists of a only 50 rows, and this particular forest had a mere 3 trees during training. 
+
+To silence the haters, lets try 40 trees, and increase the training data to 360 rows. The [original auto-mpg](auto-mpg_full.csv) dataset (excluding features 'origin' and 'car name') has 398 rows, so I'll use the remaining 38 rows for testing.
 
 
 
