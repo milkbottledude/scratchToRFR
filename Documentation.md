@@ -17,7 +17,7 @@ Lets lay out the roadmap, don't worry its not that long:
 - 3.1: [n_estimators = n trees](#31-n_estimators--n-trees)
 - 3.2: [Forest Prediction](#32-forest-prediction)
 
-### Chapter 4: Model Optimization
+### Chapter 4: Model Optimization (cmg soon!)
 - 4.1: [Single-use Features](#41-single-use-features)
 - 4.2: [Criterion: MAE](#42-criterion-mae)
 
@@ -898,7 +898,7 @@ Output: 18.2 14.333333333333334
 
 Would you look at that! While a 21% error may not be pretty, but its an improvement from the single tree prediction, which had a 26% error. Again, I'd like to remind you that the training data consists of a only 50 rows, and this particular forest had a mere 3 trees during training. 
 
-To silence the haters, lets try 40 trees, and increase the training data to 340 rows. The [original auto-mpg](auto-mpg_full.csv) dataset (excluding features 'origin' and 'car name') has 393 rows after data cleaning, so I'll use the remaining 53 rows for testing.
+To silence the haters, lets try 40 trees, and increase the training data to 340 rows. The [original auto-mpg](auto-mpg_full.csv) dataset (excluding features 'origin' and 'car name') has 392 data rows after data cleaning, so I'll use the remaining 32 rows for testing.
 
 First, lets make sure our training and test data are ready for processing
 
@@ -913,7 +913,7 @@ let testRows = rows
 console.log(trng_rows.length, testRows.length)
 let actualYs = testRows.pop('mpg')
 
-Output: 341 53
+Output: 361 32
 ```
 
 After splitting the csv into their rows and then the rows into their values, I extract the column row and the first 340 data rows and assign them to the variable 'trng_rows'. The remaining rows are the 'testRows'.
@@ -931,20 +931,91 @@ let training = (trngRows) => {
 training(trng_rows)
 ```
 
-Next, the training. After defining the path of the new json file, we train 40 trees on 340 rows of data and save the dict. The [new json file](rfrData_2.json) has 74,349 lines, my goodness. Totally different beast.
+Next, the training. After defining the path of the new json file, we train 40 trees on 360 rows of data and save the dict. The [new json file](rfrData_2.json) has 74,349 lines, my goodness. Totally different beast.
 
 Now that our forest of 40 trees has been trained, we can test it out on our 53 remaining rows.
 
 ```
-let testPred = new predForest([testRows])
+let testPred = new predForest(testRows)
 let predY = testPred.predAll(filePath)
 console.log(actualYs) // real
 console.log(predY) // predicted
 ```
 
+```
+361 32
+[
+  '20.2', '17.6', '28.0', '27.0',
+  '34.0', '31.0', '29.0', '27.0',
+  '24.0', '36.0', '37.0', '31.0',
+  '38.0', '36.0', '36.0', '36.0',
+  '34.0', '38.0', '32.0', '38.0',
+  '25.0', '38.0', '26.0', '22.0',
+  '32.0', '36.0', '27.0', '27.0',
+  '44.0', '32.0', '28.0', '31.0'
+]
+[
+  22.619999999999994, 20.755000000000003,
+  30.209999999999997,            29.4125,
+  31.880000000000003, 31.400000000000013,
+  28.165000000000013, 26.809999999999995,
+  26.257499999999983,            33.6175,
+             36.5775,            36.4475,
+               35.36, 33.434999999999995,
+               32.21,  33.20750000000002,
+  32.562500000000014,  36.45499999999999,
+   35.64499999999999,  36.27499999999999,
+  24.080000000000002, 21.479999999999997,
+  29.357499999999995, 22.672500000000003,
+   27.72999999999999,              30.07,
+   25.09499999999998, 26.504999999999995,
+              34.255,             29.655,
+  30.494999999999997,             29.095
+]
+```
+Looks abit messy here, perhaps it would look better if we print the actual and predicted values side by side.
 
+```
+...
+for (let i = 0; i < actualYs.length; i++) {
+    console.log(`Ril: ${actualYs[i]}, Fake: ${predY[i]}`)
+}
 
+First 5 output rows:
 
+Actual: 20.2, Predicted: 22.619999999999994
+Actual: 17.6, Predicted: 20.755000000000003
+Actual: 28.0, Predicted: 30.209999999999997
+Actual: 27.0, Predicted: 29.4125
+Actual: 34.0, Predicted: 31.880000000000003
+...
+```
+I honestly could not be happier with how the model is performing, the predicted values are closer to the actual values than I imagined. Lets calculate the MAE of the entire test dataset.
 
+```
+let diffs = []
+for (let i = 0; i < actualYs.length; i++) {
+    let diff = actualYs[i] - predY[i]
+    diffs.push(Math.abs(diff))
+}
+console.log(calcAvg(diffs))
+
+Output: 2.9672656249999996
+```
+Totes chuffed with that MAE value. Increasing the number of trees and training rows really took this RFR model to another level. And that concludes chapter 3 **finally** omgash.
+
+## Chapter 4: Model Optimization (cmg soon! i think...)
 
 ##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array? 2) dun forget put the diagram pic at line 452, also 3) going past min_leaf_samp is a problem 4) mayb can make our vers auto do one hot encoding for categorical cols 5) 
+
+
+## Chapter 5: Conclusion
+Honestly I think you guys have heard me talk so much its probably too much to have a long conclusion, so I'll keep it brief.
+
+While this project was short, and may look even shorter on paper, I wanted to quit many times, and handfuls of hair were yanked out over some bugs in the code. And having barely 2 weeks of Javascript experience certainly didn't help.
+
+The one thing that stopped me was this little journal right here, which kept me accountable through it all. And now that I'm at the finish line, I'm glad I saw it through.
+
+If you're reading this, I'm beyond grateful that you took the time to read my boring ahh report, it means more to me than you think. Till the next adventure, signing off.
+
+milkbottledude.

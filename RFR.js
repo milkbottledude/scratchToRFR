@@ -43,6 +43,7 @@ class Node {
         let smol = Infinity
         let ind = undefined
         let pure_rows = true
+        console.log('pickBest - ftError:', this.ftError)
         for (const ft in this.ftError) {
             if (this.ftError[ft] < smol) {
                 smol = this.ftError[ft]
@@ -50,11 +51,13 @@ class Node {
             } 
         }
         this.bestFt = [ind, this.ftThres[ind]]
+        console.log('pickBest - bestFt:', this.bestFt, 'ind:', ind, 'smol:', smol)
         if (smol > 0) {
             pure_rows = false
         }
         return pure_rows
     }
+
     testThres = (croppedData, binary=false) => {
         let lowest = Infinity
         let thres_val = undefined
@@ -94,9 +97,11 @@ class Node {
     }
     // this first
     loopFts = (colArr) => {
+        console.log('loopFts - input_rows.length:', this.input_rows.length)
         for (const ft in this.ftError) {
             let ftInd = colArr.indexOf(ft)
             let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
+            console.log('loopFts - feature:', ft, 'ftInd:', ftInd, 'cropData sample:', cropData.slice(0, 3))
             let binary = false
             if (typeof cropData[0][0] === 'boolean') {
                 binary = true
@@ -109,6 +114,7 @@ class Node {
     passOn = () => {
         let chosenFeat = this.bestFt[0]
         let chosenFeatInd = this.allCols.indexOf(chosenFeat)
+        console.log('passOn - chosenFeat:', chosenFeat, 'chosenFeatInd:', chosenFeatInd, 'bestFt:', this.bestFt)
         let leftData = undefined
         let rightData = undefined
         let threshold = this.bestFt[1]
@@ -144,7 +150,7 @@ class Tree {
         // this.leaves = [] // remove in production 
     }
 
-    feature_bagging = (allCols=this.colArr, n_fts=undefined) => {
+    feature_bagging = (node_rows, allCols=this.colArr, n_fts=undefined) => {
         let col_names = allCols.slice(0, -1)
         let node_ft_no = n_fts
         if (!node_ft_no) {
@@ -152,16 +158,24 @@ class Tree {
         }
         let col_names_node = col_names.slice()
         const node_cols = []
-        for (let i = 0; i < node_ft_no; i++) {
+        let i = 0
+        while (i < node_ft_no && col_names_node.length > 0) {
             let ind = Math.floor(Math.random() * (col_names_node.length))
-            let chosen = col_names_node.splice(ind, 1)
-            node_cols.push(chosen[0])
+            let chosen = col_names_node.splice(ind, 1)[0]
+            let dat_col = new Set()
+            for (const row of node_rows) {
+                dat_col.add(row[allCols.indexOf(chosen)])
+            }
+            if (dat_col.size > 1) {
+                node_cols.push(chosen)
+                i++
+            }
         }
         return node_cols
     }
 
     recur_node = (node_rows=this.btstr_rows, cur=this.JSONdata) => {
-        const node = new Node(node_rows, this.feature_bagging(), this.colArr)
+        const node = new Node(node_rows, this.feature_bagging(node_rows), this.colArr)
         this.no++
         node.loopFts(this.colArr)
         node.pickBest()
@@ -175,33 +189,35 @@ class Tree {
         }
         // checking if left and right are already pure
         let uniq_left =  new Set()
+        let uniq_left_x = new Set()
         let leftY = []
 
         for (const row of left) {
             uniq_left.add(row[row.length - 1])
+            uniq_left_x.add(JSON.stringify(row.slice(0, -1)))
             leftY.push(row[row.length - 1])
         }
         let uniq_right = new Set()
+        let uniq_right_x = new Set()
         let rightY = []
         for (const row of right) {
             uniq_right.add(row[row.length - 1])
+            uniq_right_x.add(JSON.stringify(row.slice(0, -1)))
             rightY.push(row[row.length - 1])
         }
-        if (uniq_left.size > 1 && leftY.length > this.min_samp_leaf) {
+        if (uniq_left.size <= 1 || leftY.length < this.min_samp_leaf || uniq_left_x.size <= 1) {
+            console.log('stop criteria met, ending node')
+            cur[0] = {'leaf_avg': calcAvg(leftY)}        
+        } else {
             console.log('commencing left child')
             this.recur_node(left, cur)
-        } else {
-            console.log('stop criteria met, ending node')
-            cur[0] = {'leaf_avg': calcAvg(leftY)}
-            // this.leaves.push(calcAvg(leftY))
         }
-        if (uniq_right.size > 1 && rightY.length > this.min_samp_leaf) {
+        if (uniq_right.size <= 1 || rightY.length < this.min_samp_leaf || uniq_right_x.size <= 1) {
+            console.log('stop criteria met, ending node')
+            cur[1] = {'leaf_avg': calcAvg(rightY)}            
+        } else {
             console.log('commencing right child')
             this.recur_node(right, cur)
-        } else {
-            console.log('stop criteria met, ending node')
-            cur[1] = {'leaf_avg': calcAvg(rightY)}
-            // this.leaves.push(calcAvg(rightY))
         }
     }
 
@@ -289,7 +305,6 @@ class predForest {
             }
             avgPreds.push(calcAvg(preds))            
         }
-        console.log(avgPreds)
         return avgPreds
     }
 }
@@ -304,7 +319,7 @@ rows = rows.map(line => line.split(','))
 let trng_rows = rows.splice(0, 361)
 let testRows = rows
 console.log(trng_rows.length, testRows.length)
-let actualYs = testRows.pop('mpg')
+let actualYs = testRows.map(row => row.pop())
 
 // trng and saving dict data
 let filePath = 'rfrData_2.json'
@@ -314,9 +329,13 @@ let training = (trngRows) => {
     testForest.toJSON()
 }
 
-training(trng_rows)
+// training(trng_rows)
 
-// let testPred = new predForest([testRows])
-// let predY = testPred.predAll(filePath)
-// console.log(actualYs) // real
-// console.log(predY) // predicted
+let testPred = new predForest(testRows)
+let predY = testPred.predAll(filePath)
+let diffs = []
+for (let i = 0; i < actualYs.length; i++) {
+    let diff = actualYs[i] - predY[i]
+    diffs.push(Math.abs(diff))
+}
+console.log(calcAvg(diffs))
