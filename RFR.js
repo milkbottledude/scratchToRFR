@@ -37,8 +37,6 @@ class Node {
             }
         }
         let div = grp1.length + grp2.length 
-        // console.log(vars)
-        // console.log(div)
         return (vars[0] + vars[1])/div
     }
     pickBest = () => {
@@ -75,15 +73,10 @@ class Node {
         if (binary === false) {
             for (const i of unique_thres) {
                     let left = croppedData.filter(row => Number(row[0]) <= Number(i))
-                    // console.log(left.length)
-                    // console.log(left)
                     let right = croppedData.filter(row => Number(row[0]) > Number(i))
                     left = left.map(row => row[1])
                     right = right.map(row => row[1])
-                    // console.log(right.length)
-                    // console.log(right)
                     let pot = this.calcVar(left, right)
-                    // console.log(pot)
                     if (pot < lowest) {
                         lowest = pot
                         thres_val = i
@@ -101,17 +94,14 @@ class Node {
     }
     // this first
     loopFts = (colArr) => {
-        // console.log(this.input_rows.slice(0, 4))
         for (const ft in this.ftError) {
             let ftInd = colArr.indexOf(ft)
-            console.log(this.input_rows)
             let cropData = this.input_rows.map(rows => [rows[ftInd], rows[rows.length-1]])
             let binary = false
             if (typeof cropData[0][0] === 'boolean') {
                 binary = true
             }
             let resArr = this.testThres(cropData, binary)
-            // console.log(resArr)
             this.ftError[ft] = resArr[0]
             this.ftThres[ft] = resArr[1]
         }
@@ -326,8 +316,7 @@ let training = (trngRows) => {
 
 training(trng_rows)
 
-let testPred = new predForest([testRows])
-let predY = testPred.predAll(filePath)
-console.log(actualYs) // real
-console.log(predY) // predicted
-
+// let testPred = new predForest([testRows])
+// let predY = testPred.predAll(filePath)
+// console.log(actualYs) // real
+// console.log(predY) // predicted

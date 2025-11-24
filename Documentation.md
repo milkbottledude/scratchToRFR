@@ -898,7 +898,7 @@ Output: 18.2 14.333333333333334
 
 Would you look at that! While a 21% error may not be pretty, but its an improvement from the single tree prediction, which had a 26% error. Again, I'd like to remind you that the training data consists of a only 50 rows, and this particular forest had a mere 3 trees during training. 
 
-To silence the haters, lets try 40 trees, and increase the training data to 360 rows. The [original auto-mpg](auto-mpg_full.csv) dataset (excluding features 'origin' and 'car name') has 398 rows, so I'll use the remaining 38 rows for testing.
+To silence the haters, lets try 40 trees, and increase the training data to 340 rows. The [original auto-mpg](auto-mpg_full.csv) dataset (excluding features 'origin' and 'car name') has 393 rows after data cleaning, so I'll use the remaining 53 rows for testing.
 
 First, lets make sure our training and test data are ready for processing
 
@@ -908,15 +908,15 @@ const unclean_csv = fs.readFileSync("auto-mpg_full.csv", "utf8");
 const csv = unclean_csv.replace(/\r/g, "");
 let rows = csv.split("\n")
 rows = rows.map(line => line.split(','))
-let trng_rows = rows.splice(0, 361)
+let trng_rows = rows.splice(0, 341)
 let testRows = rows
 console.log(trng_rows.length, testRows.length)
 let actualYs = testRows.pop('mpg')
 
-Output: 361 38
+Output: 341 53
 ```
 
-After splitting the csv into their rows and then the rows into their values, I extract the column row and the first 360 data rows and assign them to the variable 'trng_rows'. The remaining rows are the 'testRows'.
+After splitting the csv into their rows and then the rows into their values, I extract the column row and the first 340 data rows and assign them to the variable 'trng_rows'. The remaining rows are the 'testRows'.
 
 To make sure we have the right number of training and test rows, I print their lengths to check, and yes the output is correct. Then we pop the testRows' y column to compare with the Forest's predictions later on.
 
@@ -931,9 +931,9 @@ let training = (trngRows) => {
 training(trng_rows)
 ```
 
-Next, the training. After defining the path of the new json file, we train 40 trees on 360 rows of data and save the dict. The [new json file](rfrData_2.json) has 73,374 lines, my goodness. Totally different beast.
+Next, the training. After defining the path of the new json file, we train 40 trees on 340 rows of data and save the dict. The [new json file](rfrData_2.json) has 74,349 lines, my goodness. Totally different beast.
 
-Now that our forest of 40 trees has been trained, we can test it out on our 38 remaining rows.
+Now that our forest of 40 trees has been trained, we can test it out on our 53 remaining rows.
 
 ```
 let testPred = new predForest([testRows])
