@@ -9,9 +9,6 @@ const calcAvg = (arr) => {
     return avg
 } 
 
-// saving dict data
-let filePath = 'rfrData_1.json'
-
 // Node Class
 class Node {
     constructor(input_rows, features, allCols) {
@@ -290,7 +287,8 @@ class predForest {
             }
         }
     }
-    predAll = (unseenRows=this.unseenRows, JSONpath=filePath) => {
+    predAll = (JSONpath=filePath) => {
+        let unseenRows = this.unseenRows
         let avgPreds = []
         let dictS = this.fromJSON(JSONpath)
         for (const row of unseenRows) {
@@ -306,24 +304,30 @@ class predForest {
     }
 }
 
-// Execution
-let training = (trngRows, trng_csv_path="smol_pt2.csv") => {
-    // Read CSV as text
-    const unclean_csv = fs.readFileSync(trng_csv_path, "utf8");
-    const csv = unclean_csv.replace(/\r/g, "");
-    let rows = csv.split("\n")
-    rows = rows.map(line => line.split(','))
+// EXECUTION
 
-    testForest = new trainForest(3, trngRows)
+// Read CSV as text
+const unclean_csv = fs.readFileSync("auto-mpg_full.csv", "utf8");
+const csv = unclean_csv.replace(/\r/g, "");
+let rows = csv.split("\n")
+rows = rows.map(line => line.split(','))
+let trng_rows = rows.splice(0, 361)
+let testRows = rows
+console.log(trng_rows.length, testRows.length)
+let actualYs = testRows.pop('mpg')
+
+// trng and saving dict data
+let filePath = 'rfrData_2.json'
+let training = (trngRows) => {
+    testForest = new trainForest(40, trngRows)
     testForest.trainTrees()
     testForest.toJSON()
 }
 
-// training(rows)
+training(trng_rows)
 
-let unseenRow = [8, 318, 135, 3830, 15.2, 79] // for training u pass the y_column too, but for prediction u remove it
-let actualY = 18.2
-let testPred = new predForest([unseenRow])
-let predY = testPred.predAll()
-console.log(actualY, predY[0])
+let testPred = new predForest([testRows])
+let predY = testPred.predAll(filePath)
+console.log(actualYs) // real
+console.log(predY) // predicted
 

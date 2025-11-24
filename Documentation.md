@@ -900,8 +900,51 @@ Would you look at that! While a 21% error may not be pretty, but its an improvem
 
 To silence the haters, lets try 40 trees, and increase the training data to 360 rows. The [original auto-mpg](auto-mpg_full.csv) dataset (excluding features 'origin' and 'car name') has 398 rows, so I'll use the remaining 38 rows for testing.
 
+First, lets make sure our training and test data are ready for processing
+
+```
+// Read CSV as text
+const unclean_csv = fs.readFileSync("auto-mpg_full.csv", "utf8");
+const csv = unclean_csv.replace(/\r/g, "");
+let rows = csv.split("\n")
+rows = rows.map(line => line.split(','))
+let trng_rows = rows.splice(0, 361)
+let testRows = rows
+console.log(trng_rows.length, testRows.length)
+let actualYs = testRows.pop('mpg')
+
+Output: 361 38
+```
+
+After splitting the csv into their rows and then the rows into their values, I extract the column row and the first 360 data rows and assign them to the variable 'trng_rows'. The remaining rows are the 'testRows'.
+
+To make sure we have the right number of training and test rows, I print their lengths to check, and yes the output is correct. Then we pop the testRows' y column to compare with the Forest's predictions later on.
+
+```
+let filePath = 'rfrData_2.json'
+let training = (trngRows) => {
+    testForest = new trainForest(3, trngRows)
+    testForest.trainTrees()
+    testForest.toJSON()
+}
+
+training(trng_rows)
+```
+
+Next, the training. After defining the path of the new json file, we train 40 trees on 360 rows of data and save the dict. The [new json file](rfrData_2.json) has 73,374 lines, my goodness. Totally different beast.
+
+Now that our forest of 40 trees has been trained, we can test it out on our 38 remaining rows.
+
+```
+let testPred = new predForest([testRows])
+let predY = testPred.predAll(filePath)
+console.log(actualYs) // real
+console.log(predY) // predicted
+```
 
 
 
 
-##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array? 2) dun forget put the diagram pic at line 452, also 3) going past min_leaf_samp is a problem
+
+
+##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array? 2) dun forget put the diagram pic at line 452, also 3) going past min_leaf_samp is a problem 4) mayb can make our vers auto do one hot encoding for categorical cols 5) 
