@@ -17,11 +17,12 @@ Lets lay out the roadmap, don't worry its not that long:
 - 3.1: [n_estimators = n trees](#31-n_estimators--n-trees)
 - 3.2: [Forest Prediction](#32-forest-prediction)
 
-### Chapter 4: Model Optimization (cmg soon!)
-- 4.1: [Single-use Features](#41-single-use-features)
-- 4.2: [Criterion: MAE](#42-criterion-mae)
+### Chapter 4: [Conclusion](#conclusion)
 
-### Chapter 5: [Conclusion](#conclusion)
+### Bonus Chapter: Model Optimization (cmg soon!)
+- B1: [Single-use Features](#b1-single-use-features)
+- B2: [Criterion: MAE](#b2-criterion-mae)
+
 
 
 ## 📚 Documentation
@@ -1004,18 +1005,22 @@ Output: 2.9672656249999996
 ```
 Totes chuffed with that MAE value. Increasing the number of trees and training rows really took this RFR model to another level. And that concludes chapter 3 **finally** omgash.
 
-## Chapter 4: Model Optimization (cmg soon! i think...)
 
-##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array? 2) dun forget put the diagram pic at line 452, also 3) going past min_leaf_samp is a problem 4) mayb can make our vers auto do one hot encoding for categorical cols 5) 
+## Chapter 4: Conclusion
+Honestly, you guys have heard me ramble on and on about RFRs and DTRs, I don't think you want to hear much more. So I'll keep this brief.
 
+While this project only took 2 weeks, and may look even shorter on paper, I wanted to quit many times, and handfuls of hair were frequently yanked out over bugs in the code. Having only a week of Javascript experience certainly didn't help.
 
-## Chapter 5: Conclusion
-Honestly I think you guys have heard me talk so much its probably too much to have a long conclusion, so I'll keep it brief.
+The one thing that kept me going was this little journal right here, which kept me accountable when I felt like giving up. And now that I'm at the finish line, I'm glad I saw it through.
 
-While this project was short, and may look even shorter on paper, I wanted to quit many times, and handfuls of hair were yanked out over some bugs in the code. And having barely 2 weeks of Javascript experience certainly didn't help.
+If you're reading this, I'm beyond grateful that you took the time to read my boring ahh report, it means more to me than you think. 
 
-The one thing that stopped me was this little journal right here, which kept me accountable through it all. And now that I'm at the finish line, I'm glad I saw it through.
-
-If you're reading this, I'm beyond grateful that you took the time to read my boring ahh report, it means more to me than you think. Till the next adventure, signing off.
+Till the next adventure, signing off.
 
 milkbottledude.
+
+## Bonus Chapter: Model Optimization (cmg soon! i think...)
+
+rough work:
+##### // **TIPPP** TO MAKE OURS SLIGHTLY *BTR THAN SKLEARN/PYTORCH* RFR => dont reuse binary feats after they r chosen for best thres, perhaps store in a 'used_goods' array? 2) dun forget put the diagram pic at line 452, also 3) going past min_leaf_samp is a problem 4) mayb can make our vers auto do one hot encoding for categorical cols 5) 
+
